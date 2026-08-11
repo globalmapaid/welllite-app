@@ -1,5 +1,29 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p \"$HOME/.claude/plan-mode-state\"; sid=$(jq -r '.session_id'); touch \"$HOME/.claude/plan-mode-state/$sid.marker\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sid=$(jq -r '.session_id'); f=\"$HOME/.claude/plan-mode-state/$sid.marker\"; if [ -f \"$f\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}'; else echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"CLAUDE.md requires entering Plan mode before starting a new task and getting explicit approval before making changes. Call EnterPlanMode, present a plan, and wait for approval before editing or writing files.\"}}'; fi"
+          }
+        ]
+      }
+    ]
   }
 }

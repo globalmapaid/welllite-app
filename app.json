@@ -45,7 +45,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow WellLite to use your location."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ]
   }
 }

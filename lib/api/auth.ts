@@ -135,3 +135,12 @@ export interface LogoutRequest {
 export async function logout(data: LogoutRequest): Promise<void> {
   await http.post('/api/v1/auth/logout', data);
 }
+
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
+export async function refresh(data: RefreshRequest): Promise<AuthTokens> {
+  const response = await http.post('/api/v1/auth/refresh', data);
+  return response.data;
+}

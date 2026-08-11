@@ -12,16 +12,10 @@ import PrimaryButton from '@/components/atoms/PrimaryButton';
 import DropdownField from '@/components/molecules/DropdownField';
 import { colors, dimensions } from '@/components/theme';
 
-interface ProfileUser {
-  firstName: string;
-  lastName: string;
-}
-
 export default function ProfileScreen() {
-  const { signOut, switchMembership } = useAuth();
+  const { user, signOut, switchMembership } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [switching, setSwitching] = useState(false);
-  const [user, setUser] = useState<ProfileUser | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [selectedMembershipId, setSelectedMembershipId] = useState('');
   const [membershipDropdownOpen, setMembershipDropdownOpen] = useState(false);
@@ -30,13 +24,11 @@ export default function ProfileScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [me, fetchedMemberships, activeId] = await Promise.all([
-          authApi.getMe(),
+        const [fetchedMemberships, activeId] = await Promise.all([
           authApi.getMemberships(),
           getActiveMembershipId(),
         ]);
         if (!cancelled) {
-          setUser({ firstName: me.first_name, lastName: me.last_name });
           setMemberships(fetchedMemberships);
           const resolvedId = activeId ?? fetchedMemberships[0]?.membership_id ?? '';
           setSelectedMembershipId(resolvedId);
@@ -123,7 +115,7 @@ export default function ProfileScreen() {
         <View style={styles.fieldGroup}>
           <FormLabel text="First name" />
           <PillInput
-            value={user?.firstName ?? ''}
+            value={user?.first_name ?? ''}
             onChangeText={() => {}}
             placeholder=""
             editable={false}
@@ -133,7 +125,7 @@ export default function ProfileScreen() {
         <View style={styles.fieldGroup}>
           <FormLabel text="Last name" />
           <PillInput
-            value={user?.lastName ?? ''}
+            value={user?.last_name ?? ''}
             onChangeText={() => {}}
             placeholder=""
             editable={false}

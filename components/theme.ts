@@ -8,6 +8,7 @@ export const colors = {
   white: '#FFFFFF',
   subtitleGray: '#555555',
   iconCircleBg: '#EBEBEB',
+  surveyedBlue: '#1976D2',
 } as const;
 
 export const dimensions = {

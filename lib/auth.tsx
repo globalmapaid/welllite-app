@@ -2,10 +2,14 @@ import { createContext, useContext, useEffect, useState } from "react";
 import * as authApi from "./api/auth";
 import {
   clearTokens,
+  clearUser,
   getAccessToken,
   getRefreshToken,
+  getUser,
   setActiveMembershipId,
+  setForceLogoutListener,
   storeTokens,
+  storeUser,
 } from "./http";
 
 const MIN_SPLASH_MS = 1250;
@@ -20,6 +24,7 @@ interface PendingSelection {
 interface AuthContextValue {
   status: AuthStatus;
   pendingSelection: PendingSelection | null;
+  user: authApi.MeResponse | null;
   signIn: (email: string, password: string) => Promise<void>;
   selectMembership: (membershipId: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,18 +40,43 @@ function delay(ms: number): Promise<void> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
+  const [user, setUser] = useState<authApi.MeResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [token] = await Promise.all([getAccessToken(), delay(MIN_SPLASH_MS)]);
-      if (!cancelled) {
-        setStatus(token ? "signedIn" : "signedOut");
+      const [token, cachedUser] = await Promise.all([
+        getAccessToken(),
+        getUser(),
+        delay(MIN_SPLASH_MS),
+      ]);
+      if (cancelled) return;
+      setUser(cachedUser);
+      setStatus(token ? "signedIn" : "signedOut");
+      if (token) {
+        try {
+          const freshUser = await authApi.getMe();
+          if (!cancelled) {
+            setUser(freshUser);
+            await storeUser(freshUser);
+          }
+        } catch {
+          // offline-first: fall back to the cached user when the refresh fails
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    setForceLogoutListener(() => {
+      setPendingSelection(null);
+      setUser(null);
+      setStatus("signedOut");
+    });
+    return () => setForceLogoutListener(null);
   }, []);
 
   async function signIn(email: string, password: string): Promise<void> {
@@ -59,6 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     await storeTokens(result);
+    const me = await authApi.getMe();
+    setUser(me);
+    await storeUser(me);
     setStatus("signedIn");
   }
 
@@ -70,6 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     await storeTokens(tokens);
     await setActiveMembershipId(membershipId);
+    const me = await authApi.getMe();
+    setUser(me);
+    await storeUser(me);
     setPendingSelection(null);
     setStatus("signedIn");
   }
@@ -92,13 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     await clearTokens();
+    await clearUser();
     setPendingSelection(null);
+    setUser(null);
     setStatus("signedOut");
   }
 
   return (
     <AuthContext.Provider
-      value={{ status, pendingSelection, signIn, selectMembership, signOut, switchMembership }}
+      value={{ status, pendingSelection, user, signIn, selectMembership, signOut, switchMembership }}
     >
       {children}
     </AuthContext.Provider>

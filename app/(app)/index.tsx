@@ -1,516 +1,320 @@
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator } from 'react-native-paper';
+import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { db } from '@/db';
-import { wellSubmissions } from '@/db/schema';
-import DropdownField from '@/components/molecules/DropdownField';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
-import { colors, dimensions } from '@/components/theme';
+import { colors } from '@/components/theme';
+import { searchWells, type Well, type WellSearchBounds } from '@/lib/api/wells';
+import { useNetwork } from '@/lib/network';
+import { loadWellsCache, saveWellsCache } from '@/lib/wellsCache';
 
-const CONFIRM_OPTIONS = ['Yes', 'No'];
-const WELL_TYPE_OPTIONS = ['Borehole', 'Hand dug', 'Spring', 'Oasis'];
-const WELL_STATUS_OPTIONS = ['Working', 'Broken'];
+const OPENFREEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/bright';
 
-type FormState = {
-  confirmedWellHere: string;
-  wellName: string;
-  wellType: string;
-  wellStatus: string;
-  dailyUsersEstimate: string;
-  distanceToWaterKm: string;
-  comments: string;
-  staticWaterLevel: string;
-  wellDiameterCm: string;
-};
+const DEFAULT_ZOOM = 13;
+// Caps how far out the map can zoom so a single viewport can never plausibly
+// cover the whole tenant's wells — that would defeat viewport-scoped fetching.
+const MIN_ZOOM = 10;
+const REGION_CHANGE_DEBOUNCE_MS = 400;
 
-const emptyForm: FormState = {
-  confirmedWellHere: '',
-  wellName: '',
-  wellType: '',
-  wellStatus: '',
-  dailyUsersEstimate: '',
-  distanceToWaterKm: '',
-  comments: '',
-  staticWaterLevel: '',
-  wellDiameterCm: '',
-};
+const userLocationIcon = require('@/assets/shapes/user-location-circle.png');
+const wellSquareIcon = require('@/assets/shapes/well-square.png');
+const wellSurveyedTriangleIcon = require('@/assets/shapes/well-surveyed-triangle.png');
 
-function LabeledInput({
-  label,
-  value,
-  placeholder,
-  onChangeText,
-  keyboardType = 'default',
-  multiline = false,
-  info,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onChangeText: (v: string) => void;
-  keyboardType?: 'default' | 'numeric' | 'decimal-pad';
-  multiline?: boolean;
-  info?: string | string[];
-}) {
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-  const [labelWidth, setLabelWidth] = useState(0);
+const LEGEND_ITEMS = [
+  { icon: userLocationIcon, label: 'Red Circle:', description: 'Your location' },
+  { icon: wellSquareIcon, label: 'Black Squares:', description: 'Wells location' },
+  { icon: wellSurveyedTriangleIcon, label: 'Blue Triangles:', description: 'Wells already surveyed' },
+];
 
-  return (
-    <View style={styles.fieldGroup}>
-      {info && tooltipVisible && (
-        <View>
-          <View style={styles.tooltip}>
-            {Array.isArray(info)
-              ? info.map((line, i) => (
-                  <View key={i} style={styles.tooltipBulletRow}>
-                    <Text style={styles.tooltipBullet}>{'•'}</Text>
-                    <Text style={styles.tooltipText}>{line}</Text>
-                  </View>
-                ))
-              : <Text style={styles.tooltipText}>{info}</Text>
-            }
-            <TouchableOpacity onPress={() => setTooltipVisible(false)}>
-              <Text style={styles.tooltipDismiss}>Got it</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.tooltipArrow, { marginLeft: labelWidth + 5 }]} />
-        </View>
-      )}
-      <View style={styles.labelRow}>
-        <Text style={styles.label} onLayout={(e) => setLabelWidth(e.nativeEvent.layout.width)}>{label}</Text>
-        {info ? (
-          <TouchableOpacity
-            onPress={() => setTooltipVisible((v) => !v)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="information-circle-outline" size={18} color={colors.placeholder} style={styles.infoIcon} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.placeholder}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        textAlignVertical={multiline ? 'top' : 'center'}
-      />
-    </View>
-  );
-}
+export default function MapScreen() {
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [localName, setLocalName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [wells, setWells] = useState<Well[]>([]);
+  const [truncated, setTruncated] = useState(false);
+  const [selectedWell, setSelectedWell] = useState<Well | null>(null);
+  const { isConnected } = useNetwork();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-function PhotoSlot({
-  uri,
-  onPress,
-  onRemove,
-}: {
-  uri: string | null;
-  onPress: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.photoSlot} onPress={uri ? undefined : onPress} activeOpacity={0.7}>
-      {uri ? (
-        <>
-          <Image source={{ uri }} style={styles.photoImage} />
-          <TouchableOpacity style={styles.photoRemove} onPress={onRemove}>
-            <Ionicons name="close" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
-        </>
-      ) : (
-        <Ionicons name="camera-outline" size={28} color={colors.placeholder} />
-      )}
-    </TouchableOpacity>
-  );
-}
-
-export default function EnterWellDataScreen() {
-  const [form, setForm] = useState<FormState>(emptyForm);
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
-  const [saving, setSaving] = useState(false);
-  const [openField, setOpenField] = useState<keyof FormState | null>(null);
-
-  function setField(field: keyof FormState, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  function toggleField(field: keyof FormState) {
-    setOpenField((f) => (f === field ? null : field));
-  }
-
-  function selectOption(field: keyof FormState, value: string) {
-    setField(field, value);
-    setOpenField(null);
-  }
-
-  async function pickPhoto(index: number) {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission required', 'Camera access is needed to upload photos.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotos((prev) => prev.map((p, i) => (i === index ? result.assets[0].uri : p)));
-    }
-  }
-
-  function removePhoto(index: number) {
-    setPhotos((prev) => prev.map((p, i) => (i === index ? null : p)));
-  }
-
-  async function handleSave() {
-    const required: [keyof FormState, string][] = [
-      ['confirmedWellHere', 'Confirm a well is here'],
-      ['wellName', 'Well name'],
-      ['wellType', 'Well type'],
-      ['wellStatus', 'Well working or broken'],
-    ];
-    for (const [field, label] of required) {
-      if (!form[field].trim()) {
-        Alert.alert('Missing field', `"${label}" is required.`);
-        return;
-      }
-    }
-
-    setSaving(true);
-    let latitude: number | undefined;
-    let longitude: number | undefined;
-    let locationAccuracy: number | undefined;
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission required', 'Allow WellLite to use your location to show it on the map.');
+          return;
+        }
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        latitude = loc.coords.latitude;
-        longitude = loc.coords.longitude;
-        locationAccuracy = loc.coords.accuracy ?? undefined;
-      }
-    } catch {
-      // location failure does not block save
-    }
+        setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
 
-    try {
-      await db.insert(wellSubmissions).values({
-        createdAt: new Date(),
-        confirmedWellHere: form.confirmedWellHere,
-        wellName: form.wellName.trim(),
-        wellType: form.wellType,
-        wellStatus: form.wellStatus,
-        dailyUsersEstimate: form.dailyUsersEstimate ? parseInt(form.dailyUsersEstimate, 10) : null,
-        distanceToWaterKm: form.distanceToWaterKm ? parseFloat(form.distanceToWaterKm) : null,
-        comments: form.comments.trim() || null,
-        photoUris: JSON.stringify(photos.filter(Boolean)),
-        staticWaterLevel: form.staticWaterLevel ? parseFloat(form.staticWaterLevel) : null,
-        wellDiameterCm: form.wellDiameterCm ? parseFloat(form.wellDiameterCm) : null,
-        latitude: latitude ?? null,
-        longitude: longitude ?? null,
-        locationAccuracy: locationAccuracy ?? null,
-      });
-      Alert.alert('Saved', 'Well data saved successfully.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to save. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  }
+        try {
+          const [place] = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          const name = place && (place.city || place.subregion || place.region);
+          setLocalName(name ?? 'Unknown location');
+        } catch {
+          setLocalName('Unknown location');
+        }
+      } catch {
+        Alert.alert('Error', 'Failed to get your location. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const fetchWellsInBounds = useCallback(
+    (bounds: WellSearchBounds) => {
+      if (!isConnected) return;
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      (async () => {
+        try {
+          const result = await searchWells(bounds, { signal: controller.signal });
+          setWells(result.items);
+          setTruncated(result.truncated);
+          saveWellsCache(result.items);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.log('[Map] Failed to fetch wells:', error);
+        }
+      })();
+    },
+    [isConnected],
+  );
+
+  const handleRegionDidChange = useCallback(
+    (bounds: WellSearchBounds) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => fetchWellsInBounds(bounds), REGION_CHANGE_DEBOUNCE_MS);
+    },
+    [fetchWellsInBounds],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isConnected !== false) return;
+    loadWellsCache().then((cached) => {
+      if (cached.length === 0) return;
+      setWells((prev) => (prev.length > 0 ? prev : cached));
+    });
+  }, [isConnected]);
+
+  const lngLat: [number, number] | undefined = coords
+    ? [coords.longitude, coords.latitude]
+    : undefined;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Enter well data</Text>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => router.push('/profile')}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="person-circle-outline" size={26} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.headerSeparator} />
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Here is your location</Text>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.subtitleBlock}>
-            <Text style={styles.subtitleMain}>Complete the data entry</Text>
-            <Text style={styles.subtitleSub}>Get help from local users</Text>
-          </View>
-
-          <DropdownField
-            label="Confirm a well is here"
-            value={form.confirmedWellHere}
-            placeholder="Select"
-            options={CONFIRM_OPTIONS}
-            isOpen={openField === 'confirmedWellHere'}
-            onToggle={() => toggleField('confirmedWellHere')}
-            onSelect={(v) => selectOption('confirmedWellHere', v)}
-          />
-
-          <LabeledInput
-            label="Well name"
-            value={form.wellName}
-            placeholder="Enter well name"
-            onChangeText={(v) => setField('wellName', v)}
-          />
-
-          <DropdownField
-            label="Well type"
-            value={form.wellType}
-            placeholder="Select"
-            options={WELL_TYPE_OPTIONS}
-            isOpen={openField === 'wellType'}
-            onToggle={() => toggleField('wellType')}
-            onSelect={(v) => selectOption('wellType', v)}
-          />
-
-          <DropdownField
-            label="Well working or broken"
-            value={form.wellStatus}
-            placeholder="Select"
-            options={WELL_STATUS_OPTIONS}
-            isOpen={openField === 'wellStatus'}
-            onToggle={() => toggleField('wellStatus')}
-            onSelect={(v) => selectOption('wellStatus', v)}
-          />
-
-          <LabeledInput
-            label="No. people daily use estimate"
-            value={form.dailyUsersEstimate}
-            placeholder="Enter estimate"
-            onChangeText={(v) => setField('dailyUsersEstimate', v)}
-            keyboardType="numeric"
-          />
-
-          <LabeledInput
-            label="Distance to other water (Km)"
-            value={form.distanceToWaterKm}
-            placeholder="Enter distance"
-            onChangeText={(v) => setField('distanceToWaterKm', v)}
-            keyboardType="decimal-pad"
-            info="Important to know if the well is broken, and please explain more in Comments."
-          />
-
-          <LabeledInput
-            label="Comments"
-            value={form.comments}
-            placeholder="About the well, is there a story?"
-            onChangeText={(v) => setField('comments', v)}
-            multiline
-            info={[
-              'Write the short story of the well.',
-              'If the well is working, how do the users manage the maintenance ?',
-              'If the well is broken, how do the users explain this ?',
-              'Does is feed one or more village taps ?',
-              'Is it piped to buidlings in a network ?',
-              'How old is the well ?',
-              'Who originally made it ?',
-              'Anything of interest, please write here.',
-            ]}
-          />
-
-          <Text style={styles.sectionHeader}>Upload photos</Text>
-          <View style={styles.photoRow}>
-            {photos.map((uri, i) => (
-              <PhotoSlot
-                key={i}
-                uri={uri}
-                onPress={() => pickPhoto(i)}
-                onRemove={() => removePhoto(i)}
-              />
+          <View style={styles.legend}>
+            {LEGEND_ITEMS.map((item) => (
+              <View key={item.label} style={styles.legendRow}>
+                <Image source={item.icon} style={styles.legendIcon} resizeMode="contain" />
+                <Text style={styles.legendText}>
+                  <Text style={styles.legendLabel}>{item.label}</Text> {item.description}
+                </Text>
+              </View>
             ))}
           </View>
+        </View>
 
-          <Text style={styles.sectionHeader}>Optional</Text>
+        <View style={styles.mapWrap}>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.text} />
+          ) : (
+            <Map
+              style={StyleSheet.absoluteFill}
+              mapStyle={OPENFREEMAP_STYLE_URL}
+              onRegionDidChange={(event) => {
+                const [west, south, east, north] = event.nativeEvent.bounds;
+                handleRegionDidChange({ minLat: south, minLon: west, maxLat: north, maxLon: east });
+              }}
+            >
+              <Camera center={lngLat} zoom={DEFAULT_ZOOM} minZoom={MIN_ZOOM} />
+              {wells.map((well) => (
+                <Marker
+                  key={well.id}
+                  id={well.id}
+                  lngLat={[well.longitude, well.latitude]}
+                  onPress={() => setSelectedWell(well)}
+                >
+                  <Image
+                    source={well.review_status === 'approved' ? wellSurveyedTriangleIcon : wellSquareIcon}
+                    style={styles.markerIcon}
+                    resizeMode="contain"
+                  />
+                </Marker>
+              ))}
+              {lngLat && (
+                <Marker id="user-location" lngLat={lngLat}>
+                  <View style={styles.userLocationHalo}>
+                    <Image source={userLocationIcon} style={styles.markerIcon} resizeMode="contain" />
+                  </View>
+                </Marker>
+              )}
+            </Map>
+          )}
+          {truncated && (
+            <View style={styles.truncatedBanner}>
+              <Text style={styles.truncatedBannerText}>Zoom in to see all wells in this area</Text>
+            </View>
+          )}
+        </View>
 
-          <LabeledInput
-            label="Static water level"
-            value={form.staticWaterLevel}
-            placeholder="Enter static water level"
-            onChangeText={(v) => setField('staticWaterLevel', v)}
-            keyboardType="decimal-pad"
-            info="This is depth in meters from the ground surface to the water level in the well."
-          />
+        <View style={styles.footer}>
+          <Text style={styles.infoHeading}>Your current location at red circle</Text>
+          <Text style={styles.infoLine}>
+            Latitude: {coords ? `${coords.latitude.toFixed(3)}° North` : '—'}
+            {'   '}
+            Longitude: {coords ? `${coords.longitude.toFixed(3)}° East` : '—'}
+          </Text>
+          <Text style={styles.infoLine}>
+            Projection: WGS 84{'   '}Local name: {localName ?? '—'}
+          </Text>
 
-          <LabeledInput
-            label="Diameter of well opening (cms)"
-            value={form.wellDiameterCm}
-            placeholder="Enter well diameter"
-            onChangeText={(v) => setField('wellDiameterCm', v)}
-            keyboardType="decimal-pad"
-          />
+          <View style={styles.buttons}>
+            <PrimaryButton
+              label="Data for a well not on the map"
+              onPress={() => router.push('/enter-well-data')}
+              style={styles.compactButton}
+            />
+          </View>
+        </View>
+      </View>
 
-          <PrimaryButton
-            label={saving ? 'Saving…' : 'Save & Close'}
-            onPress={handleSave}
-            disabled={saving}
-            loading={saving}
-            style={styles.saveButton}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={!!selectedWell}
+        onRequestClose={() => setSelectedWell(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedWell(null)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>{selectedWell?.name ?? 'Unconfirmed well'}</Text>
+
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Latitude</Text>
+              <Text style={styles.modalValue}>{selectedWell?.latitude.toFixed(6)}</Text>
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Longitude</Text>
+              <Text style={styles.modalValue}>{selectedWell?.longitude.toFixed(6)}</Text>
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Status</Text>
+              <Text style={styles.modalValue}>{selectedWell?.well_status ?? '—'}</Text>
+            </View>
+
+            <PrimaryButton
+              label="Update well details"
+              onPress={() => {
+                router.push({ pathname: '/enter-well-data', params: { wellId: selectedWell!.id } });
+                setSelectedWell(null);
+              }}
+              style={styles.modalButton}
+            />
+
+            <Text style={styles.modalClose} onPress={() => setSelectedWell(null)}>
+              Close
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  flex: { flex: 1 },
-  scroll: { paddingHorizontal: dimensions.paddingH, paddingBottom: 40 },
-
-  header: {
-    position: 'relative',
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 16,
-    paddingHorizontal: dimensions.paddingH,
-    backgroundColor: colors.bg,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  profileButton: {
-    position: 'absolute',
-    right: dimensions.paddingH,
-    top: 8,
-  },
-  headerSeparator: {
-    height: 1,
-    backgroundColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-
-  subtitleBlock: { alignItems: 'center', marginTop: 24, marginBottom: 24 },
-  subtitleMain: { fontSize: 16, fontWeight: '700', color: colors.text },
-  subtitleSub: { fontSize: 14, color: colors.placeholder, marginTop: 2 },
-
-  fieldGroup: { marginTop: 16 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  label: { fontSize: 14, color: colors.text, fontWeight: '500', marginBottom: 10 },
-  infoIcon: { marginLeft: 4 },
-
-  input: {
-    backgroundColor: colors.inputBg,
-    borderRadius: dimensions.radius,
-    height: dimensions.inputHeight,
-    paddingHorizontal: 20,
-    fontSize: 15,
-    color: colors.text,
-  },
-  inputMultiline: {
-    height: dimensions.multilineHeight,
-    paddingTop: 14,
-    paddingBottom: 14,
-    borderRadius: dimensions.multilineRadius,
-  },
-
-  tooltip: {
-    backgroundColor: colors.text,
-    borderRadius: 12,
-    padding: 16,
-  },
-  tooltipText: {
-    color: colors.white,
-    fontSize: 15,
-    lineHeight: 22,
+  content: { flex: 1, paddingHorizontal: 20 },
+  header: { flexShrink: 0 },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 8 },
+  legend: { marginTop: 8, gap: 4 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  legendIcon: { width: 14, height: 14 },
+  legendLabel: { fontWeight: '700', color: colors.text },
+  legendText: { fontSize: 12, color: colors.text },
+  mapWrap: {
     flex: 1,
-  },
-  tooltipBulletRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  tooltipBullet: {
-    color: colors.white,
-    fontSize: 15,
-    marginRight: 8,
-    lineHeight: 22,
-  },
-  tooltipDismiss: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 15,
-    marginTop: 12,
-  },
-  tooltipArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: colors.text,
-    marginBottom: 6,
-  },
-
-  sectionHeader: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 32,
-    marginBottom: 12,
-  },
-
-  photoRow: { flexDirection: 'row', gap: 12 },
-  photoSlot: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: colors.inputBg,
-    borderWidth: 1.5,
-    borderColor: colors.placeholder,
-    borderStyle: 'dashed',
-    borderRadius: Platform.OS === 'ios' ? 12 : 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 10,
+    borderRadius: 16,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.inputBg,
   },
-  photoImage: { width: '100%', height: '100%' },
-  photoRemove: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
+  markerIcon: { width: 24, height: 24 },
+  userLocationHalo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 59, 48, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  saveButton: { marginTop: 36 },
+  truncatedBanner: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  truncatedBannerText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  footer: { flexShrink: 0, paddingTop: 10, paddingBottom: 8 },
+  infoHeading: { fontSize: 13, fontWeight: '700', color: colors.text },
+  infoLine: { fontSize: 12, color: colors.text, marginTop: 2 },
+  buttons: { marginTop: 10, gap: 8 },
+  compactButton: { height: 44 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.bg,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 12 },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  modalLabel: { fontSize: 13, color: colors.text, fontWeight: '600' },
+  modalValue: { fontSize: 13, color: colors.text },
+  modalButton: { marginTop: 18, height: 44 },
+  modalClose: {
+    textAlign: 'center',
+    marginTop: 12,
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
 });
