@@ -1,30 +1,22 @@
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useT } from "@/lib/i18n";
 
 export default function VisionAndMethod() {
+  const t = useT();
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Our vision</Text>
-      <Text style={styles.body}>
-        Together we want to research wells to improve rural water supply, and
-        support small farmers, help crop yields, improve drinking water, increase
-        small farm irrigation.
-      </Text>
+      <Text style={styles.heading}>{t('ourVision')}</Text>
+      <Text style={styles.body}>{t('visionBody')}</Text>
 
-      <Text style={styles.heading}>Our method</Text>
-      <Text style={styles.body}>
-        We are building an Artificial Intelligence (AI) called "WallMapr" to
-        better detect groundwater levels, to improve successful drills and use
-        water sustainably. To succeed, the AI needs data on wells.
-      </Text>
+      <Text style={styles.heading}>{t('ourMethod')}</Text>
+      <Text style={styles.body}>{t('methodBody')}</Text>
 
-      <Text style={styles.callout}>Can you help us research wells please?</Text>
-      <Text style={styles.body}>
-        You need a modern smartphone that is{" "}
-        <Text style={styles.underline}>GPS enabled.</Text>
-      </Text>
+      <Text style={styles.callout}>{t('canYouHelp')}</Text>
+      <Text style={styles.body}>{t('gpsNeeded')}</Text>
 
       <Text style={styles.sectionLabel}>
-        We are leading the WellLite project:
+        {t('leadingProject')}
       </Text>
 
       <View style={styles.logoBlock}>
@@ -33,9 +25,7 @@ export default function VisionAndMethod() {
           style={styles.logoMedium}
           resizeMode="contain"
         />
-        <Text style={styles.orgLabel}>
-          Ministry of Water and Energy AND{"\n"}Water Bureau across Ethiopia
-        </Text>
+        <Text style={styles.orgLabel}>{t('ministryOrg')}</Text>
       </View>
 
       <View style={styles.logoBlock}>
@@ -44,14 +34,11 @@ export default function VisionAndMethod() {
           style={styles.logoMedium}
           resizeMode="contain"
         />
-        <Text style={styles.orgLabel}>
-          Araba Minch University{"\n"}Water Technology Institute
-        </Text>
+        <Text style={styles.orgLabel}>{t('arbaMinchOrg')}</Text>
       </View>
 
       <Text style={styles.sectionLabel}>
-        We are fully supported by honourable technologists from these
-        organisations:
+        {t('fullySupported')}
       </Text>
 
       <View style={styles.logoBlock}>
@@ -103,9 +90,6 @@ const styles = StyleSheet.create({
     color: "#000000",
     lineHeight: 22,
     marginBottom: 16,
-  },
-  underline: {
-    textDecorationLine: "underline",
   },
   callout: {
     fontSize: 15,

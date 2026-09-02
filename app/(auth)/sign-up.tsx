@@ -17,16 +17,40 @@ import PrimaryButton from '@/components/atoms/PrimaryButton';
 import LinkRow from '@/components/atoms/LinkRow';
 import ErrorText from '@/components/atoms/ErrorText';
 import { colors, dimensions } from '@/components/theme';
+import { useT } from '@/lib/i18n';
 
-const OCCUPATION_OPTIONS = [
-  'Well drilling or digging contractor',
-  'Teacher',
-  'Student',
-  'NGO aid worker',
-  'Government scientist',
-  'Government aid worker',
-  'Other',
-];
+// Stable slugs stored in form state; display labels come from translations.
+// The English label (not the slug, and not whatever's currently displayed)
+// is what gets submitted to the API, keeping stored data language-independent.
+const OCCUPATION_SLUGS = [
+  'well_drilling_contractor',
+  'teacher',
+  'student',
+  'ngo_aid_worker',
+  'government_scientist',
+  'government_aid_worker',
+  'other',
+] as const;
+
+const OCCUPATION_TRANSLATION_KEYS: Record<(typeof OCCUPATION_SLUGS)[number], string> = {
+  well_drilling_contractor: 'occupationWellDrilling',
+  teacher: 'occupationTeacher',
+  student: 'occupationStudent',
+  ngo_aid_worker: 'occupationNgoAidWorker',
+  government_scientist: 'occupationGovScientist',
+  government_aid_worker: 'occupationGovAidWorker',
+  other: 'occupationOther',
+};
+
+const OCCUPATION_ENGLISH_LABELS: Record<(typeof OCCUPATION_SLUGS)[number], string> = {
+  well_drilling_contractor: 'Well drilling or digging contractor',
+  teacher: 'Teacher',
+  student: 'Student',
+  ngo_aid_worker: 'NGO aid worker',
+  government_scientist: 'Government scientist',
+  government_aid_worker: 'Government aid worker',
+  other: 'Other',
+};
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,6 +65,11 @@ interface Errors {
 }
 
 export default function SignUpScreen() {
+  const t = useT();
+  const occupationOptions = OCCUPATION_SLUGS.map((slug) => ({
+    label: t(OCCUPATION_TRANSLATION_KEYS[slug]),
+    value: slug,
+  }));
   const [firstName, setFirstName] = useState('');
   const [secondName, setSecondName] = useState('');
   const [phone, setPhone] = useState('');
@@ -112,7 +141,9 @@ export default function SignUpScreen() {
         firstName: firstName.trim(),
         secondName: secondName.trim(),
         phone,
-        occupation,
+        occupation: occupation
+          ? OCCUPATION_ENGLISH_LABELS[occupation as (typeof OCCUPATION_SLUGS)[number]]
+          : '',
         jobDescription,
         organisation,
       },
@@ -132,24 +163,24 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <FormField
-            label="First name"
+            label={t('firstName')}
             value={firstName}
             onChangeText={setFirstName}
-            placeholder="Enter first name"
+            placeholder={t('enterFirstName')}
             error={errors.firstName}
           />
 
           <FormField
-            label="Second name"
+            label={t('secondName')}
             value={secondName}
             onChangeText={setSecondName}
-            placeholder="Enter second name"
+            placeholder={t('enterSecondName')}
             error={errors.secondName}
           />
 
           {/* Phone number — one-off prefix layout, stays inline */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Phone number</Text>
+            <Text style={styles.label}>{t('phoneNumber')}</Text>
             <View style={styles.phoneRow}>
               <View style={styles.phonePrefix}>
                 <Text style={styles.phonePrefixText}>UK  +44</Text>
@@ -168,7 +199,7 @@ export default function SignUpScreen() {
 
           {/* Confirm phone number */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Confirm phone number</Text>
+            <Text style={styles.label}>{t('confirmPhoneNumber')}</Text>
             <View style={styles.phoneRow}>
               <View style={styles.phonePrefix}>
                 <Text style={styles.phonePrefixText}>UK  +44</Text>
@@ -187,30 +218,30 @@ export default function SignUpScreen() {
           </View>
 
           <FormField
-            label="Email"
+            label={t('email')}
             value={email}
             onChangeText={setEmail}
-            placeholder="Enter email"
+            placeholder={t('enterEmail')}
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}
           />
 
           <FormField
-            label="Confirm email"
+            label={t('confirmEmail')}
             value={confirmEmail}
             onChangeText={setConfirmEmail}
-            placeholder="Enter email"
+            placeholder={t('enterEmail')}
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.confirmEmail}
           />
 
           <DropdownField
-            label="Occupation"
+            label={t('occupation')}
             value={occupation}
-            placeholder="Select occupation"
-            options={OCCUPATION_OPTIONS}
+            placeholder={t('selectOccupation')}
+            options={occupationOptions}
             isOpen={occupationOpen}
             onToggle={() => setOccupationOpen((v) => !v)}
             onSelect={(v) => {
@@ -220,48 +251,48 @@ export default function SignUpScreen() {
           />
 
           <FormField
-            label="Job description"
+            label={t('jobDescription')}
             value={jobDescription}
             onChangeText={setJobDescription}
-            placeholder="Enter job description"
+            placeholder={t('enterJobDescription')}
             multiline
           />
 
           <FormField
-            label="Organisation"
+            label={t('organisation')}
             value={organisation}
             onChangeText={setOrganisation}
-            placeholder="Add organisation details"
+            placeholder={t('addOrganisationDetails')}
             multiline
           />
 
           <FormField
-            label="Password"
+            label={t('password')}
             value={password}
             onChangeText={setPassword}
-            placeholder="Enter password"
+            placeholder={t('enterPassword')}
             secureTextEntry
             error={errors.password}
           />
 
           <FormField
-            label="Confirm password"
+            label={t('confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder="Confirm password"
+            placeholder={t('confirmPassword')}
             secureTextEntry
             error={errors.confirmPassword}
           />
 
           <PrimaryButton
-            label="Agree & Continue"
+            label={t('agreeContinue')}
             onPress={handleContinue}
             style={styles.submitButton}
           />
 
           <LinkRow
-            prompt="Already have account? "
-            linkText="Sign in"
+            prompt={t('alreadyHaveAccountPrompt')}
+            linkText={t('signInLink')}
             onPress={() => router.push('/(auth)/sign-in')}
             style={styles.signInRow}
           />

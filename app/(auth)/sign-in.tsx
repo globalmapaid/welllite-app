@@ -8,11 +8,13 @@ import LinkRow from "@/components/atoms/LinkRow";
 import MembershipDialog from "@/components/organisms/MembershipDialog";
 import { colors } from "@/components/theme";
 import { useAuth } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 export default function SignIn() {
   const { fresh } = useLocalSearchParams<{ fresh?: string }>();
   const navigation = useNavigation();
   const { signIn, selectMembership, pendingSelection } = useAuth();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,19 +69,19 @@ export default function SignIn() {
 
       <View style={styles.form}>
         <FormField
-          label="Email"
+          label={t('email')}
           value={email}
           onChangeText={setEmail}
-          placeholder="Enter email"
+          placeholder={t('enterEmail')}
           keyboardType="email-address"
           autoCapitalize="none"
         />
 
         <FormField
-          label="Password"
+          label={t('password')}
           value={password}
           onChangeText={setPassword}
-          placeholder="Enter password"
+          placeholder={t('enterPassword')}
           secureTextEntry
         />
 
@@ -87,19 +89,19 @@ export default function SignIn() {
           style={styles.forgotWrapper}
           onPress={() => router.push("/(auth)/forgot-password")}
         >
-          <Text style={styles.forgotText}>Forgot Password</Text>
+          <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
         </TouchableOpacity>
 
         <PrimaryButton
-          label={loading ? "Logging in…" : "Log in"}
+          label={loading ? "Logging in…" : t('logIn')}
           onPress={handleLogin}
           disabled={loading || !email || !password}
           loading={loading}
         />
 
         <LinkRow
-          prompt="Don't have account? "
-          linkText="Sign up"
+          prompt={t('dontHaveAccountPrompt')}
+          linkText={t('signUp')}
           onPress={() => {}}
         />
       </View>

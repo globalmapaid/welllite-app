@@ -1,17 +1,21 @@
 import { Stack } from "expo-router";
+import { useT } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/molecules/LanguageSwitcher";
 
 export default function AuthLayout() {
+  const t = useT();
+
   return (
-    <Stack>
+    <Stack screenOptions={{ headerRight: () => <LanguageSwitcher /> }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="sign-in"
-        options={{ title: "Sign in", headerBackTitle: "" }}
+        options={{ title: t('logIn'), headerBackTitle: "" }}
       />
       <Stack.Screen
         name="vision"
         options={{
-          title: "Vision and Method",
+          title: t('visionAndMethod'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerTintColor: "#000000",
@@ -20,7 +24,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="ready-to-sign-up"
         options={{
-          title: "Ready to sign up",
+          title: t('readyToSignUp'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,
@@ -30,7 +34,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="privacy-policy"
         options={{
-          title: "Privacy and policy",
+          title: t('privacyAndPolicy'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,
@@ -40,7 +44,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="sign-up"
         options={{
-          title: "Sign up",
+          title: t('signUp'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,
@@ -50,7 +54,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="verify-email"
         options={{
-          title: "Account Verification",
+          title: t('accountVerification'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,
@@ -60,7 +64,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="forgot-password"
         options={{
-          title: "Forgot password",
+          title: t('forgotPassword'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,
@@ -70,7 +74,7 @@ export default function AuthLayout() {
       <Stack.Screen
         name="reset-password"
         options={{
-          title: "Reset password",
+          title: t('resetPassword'),
           headerBackTitle: "",
           headerStyle: { backgroundColor: "#ffffff" },
           headerShadowVisible: false,

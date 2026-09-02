@@ -1,7 +1,10 @@
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useT } from "@/lib/i18n";
 
 export default function PrivacyPolicy() {
+  const t = useT();
+
   return (
     <SafeAreaView style={styles.root} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -18,17 +21,9 @@ export default function PrivacyPolicy() {
           />
         </View>
 
-        <Text style={styles.paragraph}>
-          We work in accordance with legal code for Personal Data Protection Proclamation No.
-          1321/2024 under the Ethiopian Communications Authority.
-        </Text>
-
-        <Text style={styles.paragraph}>
-          In summary, we use personal data with your permission, within lawfulness, fairness, and
-          transparency. All data including personal data is used to promote development for wells, or
-          for the benefit of other sustainable development, under the leading authority of the
-          University of Arba Minch and the Ministry of Water and Energy and our WellMapr project.
-        </Text>
+        <Text style={styles.paragraph}>{t('privacyParagraph1')}</Text>
+        <Text style={styles.paragraph}>{t('privacyParagraph2')}</Text>
+        <Text style={styles.paragraph}>{t('privacyParagraph3')}</Text>
       </ScrollView>
     </SafeAreaView>
   );

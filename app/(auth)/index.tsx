@@ -1,8 +1,10 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { FontAwesome, AntDesign, Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
+import { useT } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/molecules/LanguageSwitcher";
 
 function OutlinedButton({
   label,
@@ -33,8 +35,15 @@ const goToApp = () => router.push("/(auth)/sign-in");
 const goToSignUp = () => router.push("/(auth)/ready-to-sign-up");
 
 export default function Landing() {
+  const t = useT();
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.root}>
+      <View style={[styles.languageSwitcher, { top: insets.top + 12 }]}>
+        <LanguageSwitcher iconColor="#ffffff" />
+      </View>
+
       <View style={styles.logoArea}>
         <Image
           source={require("../../assets/wellLite-logo.png")}
@@ -53,7 +62,7 @@ export default function Landing() {
         {/* <View style={styles.gap} /> */}
 
         <OutlinedButton
-          label="Create Account"
+          label={t('createAccount')}
           onPress={() => router.push("/(auth)/sign-up")}
           filled
         />
@@ -70,7 +79,7 @@ export default function Landing() {
           filled
         /> */}
         <OutlinedButton
-          label="Sign in with Email"
+          label={t('signInWithEmail')}
           icon={<Ionicons name="mail-outline" size={20} color="#fff" />}
           onPress={() => router.push("/(auth)/sign-in")}
         />
@@ -79,7 +88,7 @@ export default function Landing() {
           style={styles.visionLink}
           onPress={() => router.push("/(auth)/vision")}
         >
-          <Text style={styles.visionText}>Vision and method ›</Text>
+          <Text style={styles.visionText}>{t('visionAndMethod')} ›</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -90,6 +99,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#1C1C1C",
+  },
+  languageSwitcher: {
+    position: "absolute",
+    right: 20,
+    zIndex: 1,
   },
   logoArea: {
     flex: 1,

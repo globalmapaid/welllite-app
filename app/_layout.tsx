@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NetworkProvider, useNetwork } from '@/lib/network';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { LocaleProvider } from '@/lib/i18n';
 import { colors, dimensions } from '@/components/theme';
 import DevNetworkToggle from '@/components/molecules/DevNetworkToggle';
 import PendingSyncBanner from '@/components/molecules/PendingSyncBanner';
@@ -52,14 +53,16 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <PaperProvider>
-      <AuthProvider>
-        <NetworkProvider>
-          <OfflineBanner />
-          <PendingSyncBanner />
-          <RootNavigator />
-          <DevNetworkToggle />
-        </NetworkProvider>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <NetworkProvider>
+            <OfflineBanner />
+            <PendingSyncBanner />
+            <RootNavigator />
+            <DevNetworkToggle />
+          </NetworkProvider>
+        </AuthProvider>
+      </LocaleProvider>
     </PaperProvider>
   );
 }

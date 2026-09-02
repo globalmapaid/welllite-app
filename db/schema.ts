@@ -2,6 +2,7 @@ import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
 
 export const pendingWells = sqliteTable('pending_wells', {
   id:                        integer('id').primaryKey({ autoIncrement: true }),
+  clientUuid:                text('client_uuid').notNull(),
   createdAt:                 integer('created_at', { mode: 'timestamp' }).notNull(),
   latitude:                  real('latitude'),
   longitude:                 real('longitude'),
@@ -18,6 +19,8 @@ export const pendingWells = sqliteTable('pending_wells', {
 
 export const pendingReadings = sqliteTable('pending_readings', {
   id:                 integer('id').primaryKey({ autoIncrement: true }),
+  clientUuid:         text('client_uuid').notNull(),
+  wellClientUuid:     text('well_client_uuid').notNull(),
   createdAt:          integer('created_at', { mode: 'timestamp' }).notNull(),
   localWellId:        integer('local_well_id').notNull().references(() => pendingWells.id),
   swlMetres:          real('swl_metres').notNull(),

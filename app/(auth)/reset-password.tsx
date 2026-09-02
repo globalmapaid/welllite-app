@@ -7,9 +7,11 @@ import FormField from "@/components/molecules/FormField";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import SuccessModal from "@/components/organisms/SuccessModal";
 import { colors } from "@/components/theme";
+import { useT } from "@/lib/i18n";
 
 export default function ResetPassword() {
   const { reset_token } = useLocalSearchParams<{ reset_token: string }>();
+  const t = useT();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,29 +44,29 @@ export default function ResetPassword() {
     <SafeAreaView style={styles.root} edges={["bottom"]}>
       <View style={styles.body}>
         <Text style={styles.description}>
-          Set a new password for your account. Make sure it's strong and easy for you to remember.
+          {t('resetPasswordDescription')}
         </Text>
 
         <FormField
-          label="New password"
+          label={t('newPassword')}
           value={newPassword}
           onChangeText={setNewPassword}
-          placeholder="Enter password"
+          placeholder={t('enterPassword')}
           secureTextEntry
         />
 
         <FormField
-          label="Confirm password"
+          label={t('confirmPassword')}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          placeholder="Confirm password"
+          placeholder={t('confirmPassword')}
           secureTextEntry
         />
       </View>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={loading ? "Saving…" : "Save Password"}
+          label={loading ? "Saving…" : t('savePassword')}
           onPress={handleSave}
           disabled={disabled}
           loading={loading}
@@ -75,7 +77,7 @@ export default function ResetPassword() {
         visible={showSuccess}
         title="Password Reset Successfully"
         body={successMessage}
-        buttonLabel="Log in"
+        buttonLabel={t('logIn')}
         onButtonPress={() => router.replace({ pathname: "/(auth)/sign-in", params: { fresh: "true" } })}
       />
     </SafeAreaView>

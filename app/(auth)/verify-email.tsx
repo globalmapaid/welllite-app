@@ -6,6 +6,7 @@ import { verifyEmail, verifyResetOtp } from '../../lib/api/auth';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import SuccessModal from '@/components/organisms/SuccessModal';
 import { colors } from '@/components/theme';
+import { useT } from '@/lib/i18n';
 
 function maskEmail(email: string): string {
   const atIndex = email.indexOf('@');
@@ -18,6 +19,7 @@ function maskEmail(email: string): string {
 
 export default function VerifyEmailScreen() {
   const { email, mode } = useLocalSearchParams<{ email: string; mode?: string }>();
+  const t = useT();
   const [digits, setDigits] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -80,14 +82,17 @@ export default function VerifyEmailScreen() {
   }
 
   const codeComplete = digits.every((d) => d !== '');
+  const maskedEmail = maskEmail(email ?? '');
+  const verifyBody = t('verifyEmailBody', { email: maskedEmail });
+  const [verifyBodyBefore, verifyBodyAfter] = verifyBody.split(maskedEmail);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       <View style={styles.content}>
         <Text style={styles.body}>
-          We've sent a 4-digit code to your registered{' '}
-          <Text style={styles.email}>{maskEmail(email ?? '')}</Text>. Enter the code below to
-          continue.
+          {verifyBodyBefore}
+          <Text style={styles.email}>{maskedEmail}</Text>
+          {verifyBodyAfter}
         </Text>
 
         <View style={styles.otpRow}>
@@ -109,7 +114,7 @@ export default function VerifyEmailScreen() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={loading ? 'Verifying…' : 'Verify Code'}
+          label={loading ? 'Verifying…' : t('verifyCode')}
           onPress={handleVerify}
           disabled={!codeComplete}
           loading={loading}
@@ -118,13 +123,13 @@ export default function VerifyEmailScreen() {
 
       <SuccessModal
         visible={showSuccess}
-        title={mode === 'reset' ? 'Code Verified Successfully' : 'Registration Successful'}
+        title={mode === 'reset' ? t('codeVerifiedTitle') : 'Registration Successful'}
         body={
           mode === 'reset'
-            ? 'Your code has been verified successfully. You can reset your password.'
+            ? t('codeVerifiedBody')
             : 'Your account has been created successfully. Please log in to continue.'
         }
-        buttonLabel={mode === 'reset' ? 'Reset Password' : 'Log in'}
+        buttonLabel={mode === 'reset' ? t('resetPassword') : t('logIn')}
         onButtonPress={handleSuccessButton}
         onClose={mode === 'reset' ? () => setShowSuccess(false) : undefined}
       />

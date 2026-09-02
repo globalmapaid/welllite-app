@@ -6,8 +6,10 @@ import { register } from "../../lib/api/auth";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import ErrorText from "@/components/atoms/ErrorText";
 import { colors } from "@/components/theme";
+import { useT } from "@/lib/i18n";
 
 export default function ReadyToSignUp() {
+  const t = useT();
   const params = useLocalSearchParams<{
     email: string;
     password: string;
@@ -90,7 +92,7 @@ export default function ReadyToSignUp() {
               {privacyChecked && <View style={styles.checkInner} />}
             </View>
             <Pressable onPress={() => router.push("/(auth)/privacy-policy")}>
-              <Text style={styles.linkText}>Privacy and Policy</Text>
+              <Text style={styles.linkText}>{t('privacyAndPolicy')}</Text>
             </Pressable>
           </TouchableOpacity>
           {privacyError && (
@@ -107,14 +109,14 @@ export default function ReadyToSignUp() {
             <View style={[styles.checkbox, marketingChecked && styles.checkboxChecked]}>
               {marketingChecked && <View style={styles.checkInner} />}
             </View>
-            <Text style={styles.checkboxLabel}>I want updates, or marketing materials.</Text>
+            <Text style={styles.checkboxLabel}>{t('wantUpdates')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={loading ? 'Creating account…' : 'Agree & Continue'}
+          label={loading ? 'Creating account…' : t('agreeContinue')}
           onPress={handleContinue}
           loading={loading}
         />

@@ -3,13 +3,14 @@ import { Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator } from 'react-native-paper';
 import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import { colors } from '@/components/theme';
 import { searchWells, type Well, type WellSearchBounds } from '@/lib/api/wells';
 import { useNetwork } from '@/lib/network';
 import { loadWellsCache, saveWellsCache } from '@/lib/wellsCache';
+import { useT } from '@/lib/i18n';
 
 const OPENFREEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/bright';
 
@@ -23,13 +24,21 @@ const userLocationIcon = require('@/assets/shapes/user-location-circle.png');
 const wellSquareIcon = require('@/assets/shapes/well-square.png');
 const wellSurveyedTriangleIcon = require('@/assets/shapes/well-surveyed-triangle.png');
 
-const LEGEND_ITEMS = [
-  { icon: userLocationIcon, label: 'Red Circle:', description: 'Your location' },
-  { icon: wellSquareIcon, label: 'Black Squares:', description: 'Wells location' },
-  { icon: wellSurveyedTriangleIcon, label: 'Blue Triangles:', description: 'Wells already surveyed' },
-];
+// Each translation is "<Label>: <Description>" as one sentence (using ':' or
+// the Ethiopic colon '፦' depending on script) — split it back into the two
+// parts the legend renders with different weights.
+function splitLegendText(text: string): { label: string; description: string } {
+  const [label, ...rest] = text.split(/[:፦]/);
+  return { label: `${label}:`, description: rest.join(':').trim() };
+}
 
 export default function MapScreen() {
+  const t = useT();
+  const LEGEND_ITEMS = [
+    { icon: userLocationIcon, ...splitLegendText(t('legendYourLocation')) },
+    { icon: wellSquareIcon, ...splitLegendText(t('legendWellsLocation')) },
+    { icon: wellSurveyedTriangleIcon, ...splitLegendText(t('legendSurveyedWells')) },
+  ];
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [localName, setLocalName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,35 +48,61 @@ export default function MapScreen() {
   const { isConnected } = useNetwork();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const boundsRef = useRef<WellSearchBounds | null>(null);
+  const localNameResolvedRef = useRef(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission required', 'Allow WellLite to use your location to show it on the map.');
-          return;
-        }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      let subscription: Location.LocationSubscription | null = null;
 
+      (async () => {
         try {
-          const [place] = await Location.reverseGeocodeAsync({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
-          const name = place && (place.city || place.subregion || place.region);
-          setLocalName(name ?? 'Unknown location');
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission required', 'Allow WellLite to use your location to show it on the map.');
+            setLoading(false);
+            return;
+          }
+
+          subscription = await Location.watchPositionAsync(
+            { accuracy: Location.Accuracy.High, distanceInterval: 5 },
+            (loc) => {
+              if (cancelled) return;
+              setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+              setLoading(false);
+
+              if (!localNameResolvedRef.current) {
+                localNameResolvedRef.current = true;
+                Location.reverseGeocodeAsync({
+                  latitude: loc.coords.latitude,
+                  longitude: loc.coords.longitude,
+                })
+                  .then(([place]) => {
+                    if (cancelled) return;
+                    const name = place && (place.city || place.subregion || place.region);
+                    setLocalName(name ?? 'Unknown location');
+                  })
+                  .catch(() => {
+                    if (!cancelled) setLocalName('Unknown location');
+                  });
+              }
+            },
+          );
         } catch {
-          setLocalName('Unknown location');
+          if (!cancelled) {
+            Alert.alert('Error', 'Failed to get your location. Please try again.');
+            setLoading(false);
+          }
         }
-      } catch {
-        Alert.alert('Error', 'Failed to get your location. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+      })();
+
+      return () => {
+        cancelled = true;
+        subscription?.remove();
+      };
+    }, []),
+  );
 
   const fetchWellsInBounds = useCallback(
     (bounds: WellSearchBounds) => {
@@ -94,10 +129,17 @@ export default function MapScreen() {
 
   const handleRegionDidChange = useCallback(
     (bounds: WellSearchBounds) => {
+      boundsRef.current = bounds;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => fetchWellsInBounds(bounds), REGION_CHANGE_DEBOUNCE_MS);
     },
     [fetchWellsInBounds],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (boundsRef.current) fetchWellsInBounds(boundsRef.current);
+    }, [fetchWellsInBounds]),
   );
 
   useEffect(() => {
@@ -123,7 +165,7 @@ export default function MapScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Here is your location</Text>
+          <Text style={styles.title}>{t('hereIsYourLocation')}</Text>
 
           <View style={styles.legend}>
             {LEGEND_ITEMS.map((item) => (
@@ -181,19 +223,19 @@ export default function MapScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.infoHeading}>Your current location at red circle</Text>
+          <Text style={styles.infoHeading}>{t('currentLocationRedCircle')}</Text>
           <Text style={styles.infoLine}>
-            Latitude: {coords ? `${coords.latitude.toFixed(3)}° North` : '—'}
+            {t('latitudeLabel')}: {coords ? `${coords.latitude.toFixed(3)}° North` : '—'}
             {'   '}
-            Longitude: {coords ? `${coords.longitude.toFixed(3)}° East` : '—'}
+            {t('longitudeLabel')}: {coords ? `${coords.longitude.toFixed(3)}° East` : '—'}
           </Text>
           <Text style={styles.infoLine}>
-            Projection: WGS 84{'   '}Local name: {localName ?? '—'}
+            {t('projectionLabel')}: WGS 84{'   '}{t('localNameLabel')}: {localName ?? '—'}
           </Text>
 
           <View style={styles.buttons}>
             <PrimaryButton
-              label="Data for a well not on the map"
+              label={t('dataForWellNotOnMap')}
               onPress={() => router.push('/enter-well-data')}
               style={styles.compactButton}
             />

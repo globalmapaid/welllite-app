@@ -24,7 +24,7 @@ export async function runSync(): Promise<void> {
     if (wellRows.length === 0 && readingRows.length === 0) return;
 
     const wells: CreateWellRequest[] = wellRows.map((row) => ({
-      client_uuid: user.id,
+      client_uuid: row.clientUuid,
       latitude: row.latitude ?? 0,
       longitude: row.longitude ?? 0,
       well_confirmed: row.wellConfirmed,
@@ -38,8 +38,8 @@ export async function runSync(): Promise<void> {
     }));
 
     const readings: SyncReadingItem[] = readingRows.map((row) => ({
-      client_uuid: user.id,
-      well_client_uuid: user.id,
+      client_uuid: row.clientUuid,
+      well_client_uuid: row.wellClientUuid,
       swl_metres: row.swlMetres,
       measured_on: row.measuredOn,
     }));

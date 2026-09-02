@@ -22,38 +22,17 @@ import { pendingWells, pendingReadings } from '@/db/schema';
 import DropdownField from '@/components/molecules/DropdownField';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import { colors, dimensions } from '@/components/theme';
-import { getWellById, createWell } from '@/lib/api/wells';
+import { getWellById, createWell, submitWellChange } from '@/lib/api/wells';
 import { createReading } from '@/lib/api/readings';
 import { useNetwork } from '@/lib/network';
-import { useAuth } from '@/lib/auth';
+import { generateUuid } from '@/lib/uuid';
+import { useT } from '@/lib/i18n';
 
-const CONFIRM_OPTIONS = ['Yes', 'No'];
-const WELL_TYPE_OPTIONS = ['Borehole', 'Hand dug', 'Spring', 'Oasis'];
-const WELL_STATUS_OPTIONS = ['Working', 'Broken'];
-
-const WELL_TYPE_LABELS: Record<string, string> = {
-  borehole: 'Borehole',
-  hand_dug: 'Hand dug',
-  spring: 'Spring',
-  oasis: 'Oasis',
-};
-
-const WELL_STATUS_LABELS: Record<string, string> = {
-  working: 'Working',
-  broken: 'Broken',
-};
-
-const WELL_TYPE_VALUES: Record<string, string> = {
-  Borehole: 'borehole',
-  'Hand dug': 'hand_dug',
-  Spring: 'spring',
-  Oasis: 'oasis',
-};
-
-const WELL_STATUS_VALUES: Record<string, string> = {
-  Working: 'working',
-  Broken: 'broken',
-};
+// Form state (confirmedWellHere/wellType/wellStatus) stores stable slugs —
+// 'yes'|'no', 'borehole'|'hand_dug'|'spring', 'working'|'broken' — that
+// double as the API's values, independent of the display language.
+// 'Oasis' is intentionally not offered — the translator merged it into
+// 'Spring'.
 
 type FormState = {
   confirmedWellHere: string;
@@ -66,6 +45,14 @@ type FormState = {
   staticWaterLevel: string;
   wellDiameterCm: string;
 };
+
+// Distance-to-water needs to accept up to 3 decimal places (per spreadsheet
+// dev note); truncate rather than reject so typing never feels blocked.
+function formatDecimal3(value: string): string {
+  const [whole, decimal] = value.split('.');
+  if (decimal === undefined) return whole;
+  return `${whole}.${decimal.slice(0, 3)}`;
+}
 
 const emptyForm: FormState = {
   confirmedWellHere: '',
@@ -96,6 +83,7 @@ function LabeledInput({
   multiline?: boolean;
   info?: string | string[];
 }) {
+  const t = useT();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [labelWidth, setLabelWidth] = useState(0);
 
@@ -114,7 +102,7 @@ function LabeledInput({
               : <Text style={styles.tooltipText}>{info}</Text>
             }
             <TouchableOpacity onPress={() => setTooltipVisible(false)}>
-              <Text style={styles.tooltipDismiss}>Got it</Text>
+              <Text style={styles.tooltipDismiss}>{t('gotIt')}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.tooltipArrow, { marginLeft: labelWidth + 5 }]} />
@@ -174,7 +162,21 @@ export default function EnterWellDataScreen() {
   const { wellId } = useLocalSearchParams<{ wellId?: string }>();
   const isEditMode = !!wellId;
   const { isConnected } = useNetwork();
-  const { user } = useAuth();
+  const t = useT();
+
+  const CONFIRM_OPTIONS = [
+    { label: t('confirmYes'), value: 'yes' },
+    { label: t('confirmNo'), value: 'no' },
+  ];
+  const WELL_TYPE_OPTIONS = [
+    { label: t('wellTypeBorehole'), value: 'borehole' },
+    { label: t('wellTypeHandDug'), value: 'hand_dug' },
+    { label: t('wellTypeSpring'), value: 'spring' },
+  ];
+  const WELL_STATUS_OPTIONS = [
+    { label: t('wellStatusWorking'), value: 'working' },
+    { label: t('wellStatusBroken'), value: 'broken' },
+  ];
 
   const [form, setForm] = useState<FormState>(emptyForm);
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
@@ -188,10 +190,10 @@ export default function EnterWellDataScreen() {
       try {
         const well = await getWellById(wellId);
         setForm({
-          confirmedWellHere: well.well_confirmed ? 'Yes' : 'No',
+          confirmedWellHere: well.well_confirmed ? 'yes' : 'no',
           wellName: well.name ?? '',
-          wellType: well.well_type ? WELL_TYPE_LABELS[well.well_type] ?? '' : '',
-          wellStatus: well.well_status ? WELL_STATUS_LABELS[well.well_status] ?? '' : '',
+          wellType: well.well_type ?? '',
+          wellStatus: well.well_status ?? '',
           dailyUsersEstimate: well.daily_users_estimate?.toString() ?? '',
           distanceToWaterKm: well.distance_to_other_water_km ?? '',
           comments: well.comments ?? '',
@@ -253,6 +255,11 @@ export default function EnterWellDataScreen() {
       }
     }
 
+    if (isEditMode && !isConnected) {
+      Alert.alert('Offline', "You're offline. Connect to the internet to submit a well update.");
+      return;
+    }
+
     setSaving(true);
     let latitude: number | undefined;
     let longitude: number | undefined;
@@ -269,34 +276,47 @@ export default function EnterWellDataScreen() {
       // location failure does not block save
     }
 
+    const wellUuid = generateUuid();
+    const readingUuid = form.staticWaterLevel.trim() ? generateUuid() : undefined;
+
     if (isConnected) {
       try {
-        const well = await createWell({
-          client_uuid: user?.id ?? '',
+        const wellData = {
+          client_uuid: wellUuid,
           latitude: latitude ?? 0,
           longitude: longitude ?? 0,
-          well_confirmed: form.confirmedWellHere === 'Yes',
+          well_confirmed: form.confirmedWellHere === 'yes',
           name: form.wellName.trim(),
-          well_type: WELL_TYPE_VALUES[form.wellType] ?? form.wellType,
-          well_status: WELL_STATUS_VALUES[form.wellStatus] ?? form.wellStatus,
+          well_type: form.wellType,
+          well_status: form.wellStatus,
           daily_users_estimate: form.dailyUsersEstimate ? parseInt(form.dailyUsersEstimate, 10) : undefined,
           distance_to_other_water_km: form.distanceToWaterKm ? parseFloat(form.distanceToWaterKm) : undefined,
           opening_diameter_cm: form.wellDiameterCm ? parseFloat(form.wellDiameterCm) : undefined,
           comments: form.comments.trim() || undefined,
-        });
+        };
 
-        if (form.staticWaterLevel.trim()) {
+        let savedWellId: string;
+        if (isEditMode) {
+          await submitWellChange(wellId, wellData);
+          savedWellId = wellId;
+        } else {
+          savedWellId = (await createWell(wellData)).id;
+        }
+
+        if (readingUuid) {
           await createReading({
-            client_uuid: user?.id ?? '',
-            well_id: well.id,
+            client_uuid: readingUuid,
+            well_id: savedWellId,
             swl_metres: parseFloat(form.staticWaterLevel),
             measured_on: new Date().toISOString().slice(0, 10),
           });
         }
 
-        Alert.alert('Saved', 'Well data saved successfully.', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
+        Alert.alert(
+          'Saved',
+          isEditMode ? 'Well update submitted successfully.' : 'Well data saved successfully.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
       } catch (err) {
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -312,13 +332,14 @@ export default function EnterWellDataScreen() {
       const [insertedWell] = await db
         .insert(pendingWells)
         .values({
+          clientUuid: wellUuid,
           createdAt: new Date(),
           latitude: latitude ?? null,
           longitude: longitude ?? null,
-          wellConfirmed: form.confirmedWellHere === 'Yes',
+          wellConfirmed: form.confirmedWellHere === 'yes',
           name: form.wellName.trim(),
-          wellType: WELL_TYPE_VALUES[form.wellType] ?? form.wellType,
-          wellStatus: WELL_STATUS_VALUES[form.wellStatus] ?? form.wellStatus,
+          wellType: form.wellType,
+          wellStatus: form.wellStatus,
           dailyUsersEstimate: form.dailyUsersEstimate ? parseInt(form.dailyUsersEstimate, 10) : null,
           distanceToOtherWaterKm: form.distanceToWaterKm ? parseFloat(form.distanceToWaterKm) : null,
           openingDiameterCm: form.wellDiameterCm ? parseFloat(form.wellDiameterCm) : null,
@@ -327,8 +348,10 @@ export default function EnterWellDataScreen() {
         })
         .returning({ id: pendingWells.id });
 
-      if (form.staticWaterLevel.trim()) {
+      if (readingUuid) {
         await db.insert(pendingReadings).values({
+          clientUuid: readingUuid,
+          wellClientUuid: wellUuid,
           createdAt: new Date(),
           localWellId: insertedWell.id,
           swlMetres: parseFloat(form.staticWaterLevel),
@@ -350,7 +373,7 @@ export default function EnterWellDataScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: isEditMode ? 'Update well data' : 'Enter well data' }} />
+      <Stack.Screen options={{ title: isEditMode ? 'Update well data' : t('enterWellData') }} />
 
       {loadingWell ? (
         <View style={[styles.flex, styles.loadingWrap]}>
@@ -368,14 +391,14 @@ export default function EnterWellDataScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.subtitleBlock}>
-            <Text style={styles.subtitleMain}>Complete the data entry</Text>
-            <Text style={styles.subtitleSub}>Get help from local users</Text>
+            <Text style={styles.subtitleMain}>{t('completeDataEntry')}</Text>
+            <Text style={styles.subtitleSub}>{t('getHelpFromLocalUsers')}</Text>
           </View>
 
           <DropdownField
-            label="Confirm a well is here"
+            label={t('confirmWellIsHere')}
             value={form.confirmedWellHere}
-            placeholder="Select"
+            placeholder={t('select')}
             options={CONFIRM_OPTIONS}
             isOpen={openField === 'confirmedWellHere'}
             onToggle={() => toggleField('confirmedWellHere')}
@@ -383,16 +406,16 @@ export default function EnterWellDataScreen() {
           />
 
           <LabeledInput
-            label="Well name"
+            label={t('wellName')}
             value={form.wellName}
-            placeholder="Enter well name"
+            placeholder={t('enterWellName')}
             onChangeText={(v) => setField('wellName', v)}
           />
 
           <DropdownField
-            label="Well type"
+            label={t('wellType')}
             value={form.wellType}
-            placeholder="Select"
+            placeholder={t('select')}
             options={WELL_TYPE_OPTIONS}
             isOpen={openField === 'wellType'}
             onToggle={() => toggleField('wellType')}
@@ -400,9 +423,9 @@ export default function EnterWellDataScreen() {
           />
 
           <DropdownField
-            label="Well working or broken"
+            label={t('wellWorkingOrBroken')}
             value={form.wellStatus}
-            placeholder="Select"
+            placeholder={t('select')}
             options={WELL_STATUS_OPTIONS}
             isOpen={openField === 'wellStatus'}
             onToggle={() => toggleField('wellStatus')}
@@ -410,41 +433,41 @@ export default function EnterWellDataScreen() {
           />
 
           <LabeledInput
-            label="No. people daily use estimate"
+            label={t('dailyUseEstimate')}
             value={form.dailyUsersEstimate}
-            placeholder="Enter estimate"
+            placeholder={t('enterEstimate')}
             onChangeText={(v) => setField('dailyUsersEstimate', v)}
             keyboardType="numeric"
           />
 
           <LabeledInput
-            label="Distance to other water (Km)"
+            label={t('distanceToWater')}
             value={form.distanceToWaterKm}
-            placeholder="Enter distance"
-            onChangeText={(v) => setField('distanceToWaterKm', v)}
+            placeholder={t('enterDistance')}
+            onChangeText={(v) => setField('distanceToWaterKm', formatDecimal3(v))}
             keyboardType="decimal-pad"
-            info="Important to know if the well is broken, and please explain more in Comments."
+            info={t('distanceInfoTooltip')}
           />
 
           <LabeledInput
-            label="Comments"
+            label={t('comments')}
             value={form.comments}
-            placeholder="About the well, is there a story?"
+            placeholder={t('commentsPlaceholder')}
             onChangeText={(v) => setField('comments', v)}
             multiline
             info={[
-              'Write the short story of the well.',
-              'If the well is working, how do the users manage the maintenance ?',
-              'If the well is broken, how do the users explain this ?',
-              'Does is feed one or more village taps ?',
-              'Is it piped to buidlings in a network ?',
-              'How old is the well ?',
-              'Who originally made it ?',
-              'Anything of interest, please write here.',
+              t('commentsInfoStory'),
+              t('commentsInfoMaintenance'),
+              t('commentsInfoBroken'),
+              t('commentsInfoVillageTaps'),
+              t('commentsInfoNetwork'),
+              t('commentsInfoAge'),
+              t('commentsInfoMadeBy'),
+              t('commentsInfoOther'),
             ]}
           />
 
-          <Text style={styles.sectionHeader}>Upload photos</Text>
+          <Text style={styles.sectionHeader}>{t('uploadPhotos')}</Text>
           <View style={styles.photoRow}>
             {photos.map((uri, i) => (
               <PhotoSlot
@@ -456,27 +479,27 @@ export default function EnterWellDataScreen() {
             ))}
           </View>
 
-          <Text style={styles.sectionHeader}>Optional</Text>
+          <Text style={styles.sectionHeader}>{t('optional')}</Text>
 
           <LabeledInput
-            label="Static water level"
+            label={t('staticWaterLevel')}
             value={form.staticWaterLevel}
-            placeholder="Enter static water level"
+            placeholder={t('enterStaticWaterLevel')}
             onChangeText={(v) => setField('staticWaterLevel', v)}
             keyboardType="decimal-pad"
-            info="This is depth in meters from the ground surface to the water level in the well."
+            info={t('staticWaterLevelInfo')}
           />
 
           <LabeledInput
-            label="Diameter of well opening (cms)"
+            label={t('diameterOfWellOpening')}
             value={form.wellDiameterCm}
-            placeholder="Enter well diameter"
+            placeholder={t('enterWellDiameter')}
             onChangeText={(v) => setField('wellDiameterCm', v)}
             keyboardType="decimal-pad"
           />
 
           <PrimaryButton
-            label={saving ? 'Saving…' : 'Save & Close'}
+            label={saving ? 'Saving…' : t('saveClose')}
             onPress={handleSave}
             disabled={saving}
             loading={saving}

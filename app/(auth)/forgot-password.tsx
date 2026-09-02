@@ -7,8 +7,10 @@ import { forgotPassword } from "../../lib/api/auth";
 import FormField from "@/components/molecules/FormField";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import { colors } from "@/components/theme";
+import { useT } from "@/lib/i18n";
 
 export default function ForgotPassword() {
+  const t = useT();
   const [contact, setContact] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -44,14 +46,14 @@ export default function ForgotPassword() {
 
       <View style={styles.body}>
         <Text style={styles.description}>
-          Please choose how you'd like to recover your account.
+          {t('chooseRecovery')}
         </Text>
 
         <FormField
-          label="Enter email or phone number"
+          label={t('enterEmailOrPhone')}
           value={contact}
           onChangeText={setContact}
-          placeholder="Enter email or phone number"
+          placeholder={t('enterEmailOrPhone')}
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -59,7 +61,7 @@ export default function ForgotPassword() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          label={loading ? "Sending…" : "Next"}
+          label={loading ? "Sending…" : t('next')}
           onPress={handleNext}
           disabled={disabled}
           loading={loading}

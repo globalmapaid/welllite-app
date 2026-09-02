@@ -7,6 +7,7 @@ const sqlite = open({ name: 'welllite.db' });
 sqlite.execute(`
   CREATE TABLE IF NOT EXISTS pending_wells (
     id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_uuid                 TEXT NOT NULL DEFAULT '',
     created_at                  INTEGER NOT NULL,
     latitude                    REAL,
     longitude                   REAL,
@@ -24,11 +25,13 @@ sqlite.execute(`
 
 sqlite.execute(`
   CREATE TABLE IF NOT EXISTS pending_readings (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at     INTEGER NOT NULL,
-    local_well_id  INTEGER NOT NULL REFERENCES pending_wells(id),
-    swl_metres     REAL NOT NULL,
-    measured_on    TEXT NOT NULL
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_uuid       TEXT NOT NULL DEFAULT '',
+    well_client_uuid  TEXT NOT NULL DEFAULT '',
+    created_at        INTEGER NOT NULL,
+    local_well_id     INTEGER NOT NULL REFERENCES pending_wells(id),
+    swl_metres        REAL NOT NULL,
+    measured_on       TEXT NOT NULL
   )
 `);
 
@@ -41,5 +44,19 @@ sqlite.execute(`
 `);
 
 sqlite.execute(`DROP TABLE IF EXISTS well_submissions`);
+
+// Ad-hoc migrations for columns added after the tables above first shipped —
+// CREATE TABLE IF NOT EXISTS won't add these to an already-existing install.
+for (const alter of [
+  `ALTER TABLE pending_wells ADD COLUMN client_uuid TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pending_readings ADD COLUMN client_uuid TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE pending_readings ADD COLUMN well_client_uuid TEXT NOT NULL DEFAULT ''`,
+]) {
+  try {
+    sqlite.executeSync(alter);
+  } catch {
+    // column already exists
+  }
+}
 
 export const db = drizzle(sqlite, { schema });

@@ -80,3 +80,7 @@ export async function createWell(data: CreateWellRequest): Promise<Well> {
   const response = await http.post<Well>('/api/v1/wells', data);
   return response.data;
 }
+
+export async function submitWellChange(wellId: string, data: CreateWellRequest): Promise<void> {
+  await http.post(`/api/v1/wells/${wellId}/changes`, data);
+}
