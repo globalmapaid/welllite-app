@@ -19,7 +19,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      const connected = state.isConnected;
+      const connected = state.isConnected === true && state.isInternetReachable !== false;
       console.log("[Network] isConnected:", connected, "| type:", state.type);
       setRealIsConnected(connected);
     });

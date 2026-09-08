@@ -102,7 +102,7 @@ export default function SignIn() {
         <LinkRow
           prompt={t('dontHaveAccountPrompt')}
           linkText={t('signUp')}
-          onPress={() => {}}
+          onPress={() => router.push('/(auth)/sign-up')}
         />
       </View>
 

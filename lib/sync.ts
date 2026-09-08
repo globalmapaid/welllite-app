@@ -12,16 +12,16 @@ export async function getPendingCount(): Promise<number> {
   return wellRows.length;
 }
 
-export async function runSync(): Promise<void> {
-  if (syncing) return;
+export async function runSync(): Promise<{ rejected: number }> {
+  if (syncing) return { rejected: 0 };
   syncing = true;
   try {
     const user = await getUser();
-    if (!user) return;
+    if (!user) return { rejected: 0 };
 
     const wellRows = await db.select().from(pendingWells);
     const readingRows = await db.select().from(pendingReadings);
-    if (wellRows.length === 0 && readingRows.length === 0) return;
+    if (wellRows.length === 0 && readingRows.length === 0) return { rejected: 0 };
 
     const wells: CreateWellRequest[] = wellRows.map((row) => ({
       client_uuid: row.clientUuid,
@@ -44,22 +44,30 @@ export async function runSync(): Promise<void> {
       measured_on: row.measuredOn,
     }));
 
+    let response;
     try {
-      await syncBatch({ wells, readings });
+      response = await syncBatch({ wells, readings });
     } catch {
       // network error or SYNC_CONFLICT: leave local rows untouched, retry on next trigger
-      return;
+      return { rejected: 0 };
     }
 
     // The batch endpoint is fully idempotent and every item comes back as a
-    // terminal result (created/duplicate/rejected) on success, so the whole
-    // queue can be cleared once the request succeeds.
+    // terminal result (created/duplicate/rejected), so the whole queue can be
+    // cleared once the request succeeds — but rejected items are counted so
+    // the caller can tell the user their data was permanently discarded.
+    const rejected =
+      response.wells.filter((r) => r.status === 'rejected').length +
+      response.readings.filter((r) => r.status === 'rejected').length;
+
     for (const row of wellRows) {
       await db.delete(pendingWells).where(eq(pendingWells.id, row.id));
     }
     for (const row of readingRows) {
       await db.delete(pendingReadings).where(eq(pendingReadings.id, row.id));
     }
+
+    return { rejected };
   } finally {
     syncing = false;
   }

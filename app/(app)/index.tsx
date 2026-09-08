@@ -65,7 +65,7 @@ export default function MapScreen() {
             return;
           }
 
-          subscription = await Location.watchPositionAsync(
+          const watcher = await Location.watchPositionAsync(
             { accuracy: Location.Accuracy.High, distanceInterval: 5 },
             (loc) => {
               if (cancelled) return;
@@ -89,6 +89,12 @@ export default function MapScreen() {
               }
             },
           );
+
+          if (cancelled) {
+            watcher.remove();
+            return;
+          }
+          subscription = watcher;
         } catch {
           if (!cancelled) {
             Alert.alert('Error', 'Failed to get your location. Please try again.');

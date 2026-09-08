@@ -95,7 +95,7 @@ describe('runSync', () => {
   it('clears both queues after a successful sync', async () => {
     mockState.wellRows = [makeWellRow(1)];
     mockState.readingRows = [makeReadingRow(2)];
-    (syncBatch as jest.Mock).mockResolvedValue({ results: [] });
+    (syncBatch as jest.Mock).mockResolvedValue({ wells: [], readings: [] });
 
     await runSync();
 
@@ -124,7 +124,7 @@ describe('runSync', () => {
 
     const first = runSync();
     const second = runSync();
-    resolveBatch({ results: [] });
+    resolveBatch({ wells: [], readings: [] });
     await Promise.all([first, second]);
 
     expect(syncBatch).toHaveBeenCalledTimes(1);

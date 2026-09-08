@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { db } from '@/db';
@@ -184,6 +184,14 @@ export default function EnterWellDataScreen() {
   const [loadingWell, setLoadingWell] = useState(isEditMode);
   const [openField, setOpenField] = useState<keyof FormState | null>(null);
 
+  // Stable idempotency keys for this screen instance so a retried save (after
+  // a timeout or failed submission) reuses the same client_uuid instead of
+  // being treated as a brand-new record by the server.
+  const wellUuidRef = useRef<string | null>(null);
+  if (wellUuidRef.current === null) wellUuidRef.current = generateUuid();
+  const readingUuidRef = useRef<string | null>(null);
+  if (readingUuidRef.current === null) readingUuidRef.current = generateUuid();
+
   useEffect(() => {
     if (!wellId) return;
     (async () => {
@@ -276,8 +284,8 @@ export default function EnterWellDataScreen() {
       // location failure does not block save
     }
 
-    const wellUuid = generateUuid();
-    const readingUuid = form.staticWaterLevel.trim() ? generateUuid() : undefined;
+    const wellUuid = wellUuidRef.current!;
+    const readingUuid = form.staticWaterLevel.trim() ? readingUuidRef.current! : undefined;
 
     if (isConnected) {
       try {

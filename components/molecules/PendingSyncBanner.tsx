@@ -15,6 +15,7 @@ export default function PendingSyncBanner() {
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [rejectedCount, setRejectedCount] = useState(0);
 
   const active = isConnected === true && status === 'signedIn';
 
@@ -26,11 +27,18 @@ export default function PendingSyncBanner() {
   async function handleSync() {
     setSyncing(true);
     setSyncFailed(false);
-    await runSync();
-    const count = await getPendingCount();
-    setPendingCount(count);
-    setSyncFailed(count > 0);
-    setSyncing(false);
+    setRejectedCount(0);
+    try {
+      const { rejected } = await runSync();
+      const count = await getPendingCount();
+      setPendingCount(count);
+      setSyncFailed(count > 0);
+      setRejectedCount(rejected);
+    } catch {
+      setSyncFailed(true);
+    } finally {
+      setSyncing(false);
+    }
   }
 
   if (!active || pendingCount === 0) return null;
@@ -50,7 +58,13 @@ export default function PendingSyncBanner() {
           )}
         </TouchableOpacity>
       </View>
-      {syncFailed && (
+      {syncFailed && rejectedCount > 0 && (
+        <Text style={styles.errorText}>
+          {rejectedCount} item{rejectedCount === 1 ? '' : 's'} couldn&apos;t be saved and{' '}
+          {rejectedCount === 1 ? 'was' : 'were'} discarded.
+        </Text>
+      )}
+      {syncFailed && rejectedCount === 0 && (
         <Text style={styles.errorText}>Couldn&apos;t sync — check your connection and try again.</Text>
       )}
     </View>

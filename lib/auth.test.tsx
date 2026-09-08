@@ -188,11 +188,19 @@ describe('AuthProvider', () => {
     expect(getValue().user).toBeNull();
   });
 
-  it('a triggered force-logout resets the session', async () => {
+  it('a triggered force-logout resets an authenticated session', async () => {
+    const cachedUser = { id: 'u1', email: 'cached@example.com' } as authApi.MeResponse;
+    (http.getAccessToken as jest.Mock).mockResolvedValue('token');
+    (http.getUser as jest.Mock).mockResolvedValue(cachedUser);
+    (authApi.getMe as jest.Mock).mockResolvedValue(cachedUser);
+
     const getValue = await renderAuth();
+    expect(getValue().status).toBe('signedIn');
+
     const listener = (http.setForceLogoutListener as jest.Mock).mock.calls.find(
       ([fn]) => typeof fn === 'function',
     )?.[0];
+    expect(typeof listener).toBe('function');
 
     await act(async () => {
       listener?.();
