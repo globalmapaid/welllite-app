@@ -11,9 +11,11 @@ import PillInput from '@/components/atoms/PillInput';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import DropdownField from '@/components/molecules/DropdownField';
 import { colors, dimensions } from '@/components/theme';
+import { useTranslateServerMessage } from '@/lib/i18n';
 
 export default function ProfileScreen() {
   const { user, signOut, switchMembership } = useAuth();
+  const translateServerMessage = useTranslateServerMessage();
   const [loggingOut, setLoggingOut] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [memberships, setMemberships] = useState<Membership[]>([]);
@@ -43,7 +45,7 @@ export default function ProfileScreen() {
             error?.response?.data?.message ||
             error?.message ||
             'Something went wrong. Please try again.';
-          Alert.alert('Error', message);
+          Alert.alert('Error', translateServerMessage(message));
         }
       }
     })();
@@ -99,7 +101,7 @@ export default function ProfileScreen() {
         error?.response?.data?.message ||
         error?.message ||
         'Something went wrong. Please try again.';
-      Alert.alert('Error', message);
+      Alert.alert('Error', translateServerMessage(message));
     } finally {
       setSwitching(false);
     }

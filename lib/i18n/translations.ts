@@ -1,6 +1,6 @@
 export type Locale = 'en' | 'am' | 'am-Latn' | 'om';
 
-type Entry = Record<Locale, string>;
+export type Entry = Record<Locale, string>;
 
 // Sourced from "WellLite_language_translation_18th August 2026.xlsx" (sheet
 // "WellLite texts"), keyed by the screen number in the reference screenshots.

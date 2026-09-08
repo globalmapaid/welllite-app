@@ -8,13 +8,14 @@ import LinkRow from "@/components/atoms/LinkRow";
 import MembershipDialog from "@/components/organisms/MembershipDialog";
 import { colors } from "@/components/theme";
 import { useAuth } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { useT, useTranslateServerMessage } from "@/lib/i18n";
 
 export default function SignIn() {
   const { fresh } = useLocalSearchParams<{ fresh?: string }>();
   const navigation = useNavigation();
   const { signIn, selectMembership, pendingSelection } = useAuth();
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function SignIn() {
         error?.response?.data?.message ||
         error?.message ||
         "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      Alert.alert("Error", translateServerMessage(message));
     } finally {
       setLoading(false);
     }
@@ -51,7 +52,7 @@ export default function SignIn() {
         error?.response?.data?.message ||
         error?.message ||
         "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      Alert.alert("Error", translateServerMessage(message));
     } finally {
       setLoading(false);
     }

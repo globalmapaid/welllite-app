@@ -7,10 +7,11 @@ import { forgotPassword } from "../../lib/api/auth";
 import FormField from "@/components/molecules/FormField";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import { colors } from "@/components/theme";
-import { useT } from "@/lib/i18n";
+import { useT, useTranslateServerMessage } from "@/lib/i18n";
 
 export default function ForgotPassword() {
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
   const [contact, setContact] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +27,7 @@ export default function ForgotPassword() {
         error?.response?.data?.message ||
         error?.message ||
         "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      Alert.alert("Error", translateServerMessage(message));
     } finally {
       setLoading(false);
     }

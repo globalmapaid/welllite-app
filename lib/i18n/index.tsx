@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { translations, type Locale } from './translations';
+import { serverMessages } from './serverMessages';
 
 export type { Locale } from './translations';
 
@@ -28,6 +29,17 @@ export function resolveTranslation(key: string, locale: Locale, vars?: Translati
   if (!entry) return key;
   const text = entry[locale] ?? entry.en ?? key;
   return interpolate(text, vars);
+}
+
+const serverMessageMap = new Map(serverMessages.map((entry) => [entry.en, entry]));
+
+// Backend error/response text is free-form (not a stable code), so this
+// looks it up by exact English string rather than by key like resolveTranslation.
+export function translateServerMessage(message: string | undefined, locale: Locale): string | undefined {
+  if (!message) return message;
+  const entry = serverMessageMap.get(message);
+  if (!entry) return message;
+  return entry[locale] ?? entry.en;
 }
 
 interface LocaleContextValue {
@@ -75,4 +87,9 @@ export function useLocale() {
   const value = useContext(LocaleContext);
   if (!value) throw new Error('useLocale must be used within a LocaleProvider');
   return { locale: value.locale, setLocale: value.setLocale };
+}
+
+export function useTranslateServerMessage() {
+  const { locale } = useLocale();
+  return (message?: string) => translateServerMessage(message, locale);
 }

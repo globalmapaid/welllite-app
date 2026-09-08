@@ -6,10 +6,11 @@ import { register } from "../../lib/api/auth";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import ErrorText from "@/components/atoms/ErrorText";
 import { colors } from "@/components/theme";
-import { useT } from "@/lib/i18n";
+import { useT, useTranslateServerMessage } from "@/lib/i18n";
 
 export default function ReadyToSignUp() {
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
   const params = useLocalSearchParams<{
     email: string;
     password: string;
@@ -57,7 +58,7 @@ export default function ReadyToSignUp() {
         error?.response?.data?.message ||
         error?.message ||
         'Registration failed. Please try again.';
-      Alert.alert('Registration failed', message);
+      Alert.alert('Registration failed', translateServerMessage(message));
     } finally {
       setLoading(false);
     }

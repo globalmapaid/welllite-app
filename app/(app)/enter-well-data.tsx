@@ -26,7 +26,7 @@ import { getWellById, createWell, submitWellChange } from '@/lib/api/wells';
 import { createReading } from '@/lib/api/readings';
 import { useNetwork } from '@/lib/network';
 import { generateUuid } from '@/lib/uuid';
-import { useT } from '@/lib/i18n';
+import { useT, useTranslateServerMessage } from '@/lib/i18n';
 
 // Form state (confirmedWellHere/wellType/wellStatus) stores stable slugs —
 // 'yes'|'no', 'borehole'|'hand_dug'|'spring', 'working'|'broken' — that
@@ -163,6 +163,7 @@ export default function EnterWellDataScreen() {
   const isEditMode = !!wellId;
   const { isConnected } = useNetwork();
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
 
   const CONFIRM_OPTIONS = [
     { label: t('confirmYes'), value: 'yes' },
@@ -329,7 +330,7 @@ export default function EnterWellDataScreen() {
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
           'Failed to save. Please try again.';
-        Alert.alert('Error', message);
+        Alert.alert('Error', translateServerMessage(message));
       } finally {
         setSaving(false);
       }

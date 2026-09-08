@@ -6,7 +6,7 @@ import { verifyEmail, verifyResetOtp } from '../../lib/api/auth';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import SuccessModal from '@/components/organisms/SuccessModal';
 import { colors } from '@/components/theme';
-import { useT } from '@/lib/i18n';
+import { useT, useTranslateServerMessage } from '@/lib/i18n';
 
 function maskEmail(email: string): string {
   const atIndex = email.indexOf('@');
@@ -20,6 +20,7 @@ function maskEmail(email: string): string {
 export default function VerifyEmailScreen() {
   const { email, mode } = useLocalSearchParams<{ email: string; mode?: string }>();
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
   const [digits, setDigits] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -66,7 +67,7 @@ export default function VerifyEmailScreen() {
         error?.response?.data?.message ||
         error?.message ||
         'Verification failed. Please try again.';
-      Alert.alert('Verification failed', message);
+      Alert.alert('Verification failed', translateServerMessage(message));
     } finally {
       setLoading(false);
     }

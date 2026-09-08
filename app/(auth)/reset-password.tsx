@@ -7,11 +7,12 @@ import FormField from "@/components/molecules/FormField";
 import PrimaryButton from "@/components/atoms/PrimaryButton";
 import SuccessModal from "@/components/organisms/SuccessModal";
 import { colors } from "@/components/theme";
-import { useT } from "@/lib/i18n";
+import { useT, useTranslateServerMessage } from "@/lib/i18n";
 
 export default function ResetPassword() {
   const { reset_token } = useLocalSearchParams<{ reset_token: string }>();
   const t = useT();
+  const translateServerMessage = useTranslateServerMessage();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export default function ResetPassword() {
     setLoading(true);
     try {
       const result = await resetPassword({ reset_token, new_password: newPassword });
-      setSuccessMessage(result.message);
+      setSuccessMessage(translateServerMessage(result.message) ?? result.message);
       setShowSuccess(true);
     } catch (error: any) {
       const message =
@@ -34,7 +35,7 @@ export default function ResetPassword() {
         error?.response?.data?.message ||
         error?.message ||
         "Something went wrong. Please try again.";
-      Alert.alert("Error", message);
+      Alert.alert("Error", translateServerMessage(message));
     } finally {
       setLoading(false);
     }
