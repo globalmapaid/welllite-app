@@ -15,12 +15,19 @@ export const LOCALES: { code: Locale; label: string }[] = [
 
 type TranslationVars = Record<string, string>;
 
-function interpolate(text: string, vars?: TranslationVars): string {
+export function interpolate(text: string, vars?: TranslationVars): string {
   if (!vars) return text;
   return Object.entries(vars).reduce(
     (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value),
     text,
   );
+}
+
+export function resolveTranslation(key: string, locale: Locale, vars?: TranslationVars): string {
+  const entry = translations[key];
+  if (!entry) return key;
+  const text = entry[locale] ?? entry.en ?? key;
+  return interpolate(text, vars);
 }
 
 interface LocaleContextValue {
@@ -48,10 +55,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }
 
   function t(key: string, vars?: TranslationVars): string {
-    const entry = translations[key];
-    if (!entry) return key;
-    const text = entry[locale] ?? entry.en ?? key;
-    return interpolate(text, vars);
+    return resolveTranslation(key, locale, vars);
   }
 
   return (
