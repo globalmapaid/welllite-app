@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import * as authApi from "./api/auth";
+import { getDeviceHint } from "./deviceId";
 import {
   clearTokens,
   clearUser,
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function signIn(email: string, password: string): Promise<void> {
-    const result = await authApi.login({ email, password });
+    const result = await authApi.login({ email, password, device_hint: getDeviceHint() });
     if (authApi.isMembershipSelectionRequired(result)) {
       setPendingSelection({
         preAuthToken: result.pre_auth_token,

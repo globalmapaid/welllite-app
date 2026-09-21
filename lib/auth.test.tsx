@@ -18,6 +18,10 @@ jest.mock('./http', () => ({
   setForceLogoutListener: jest.fn(),
 }));
 
+jest.mock('./deviceId', () => ({
+  getDeviceHint: () => 'ios-iphone15pro',
+}));
+
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import * as authApi from './api/auth';
@@ -112,6 +116,11 @@ describe('AuthProvider', () => {
       await getValue().signIn('me@example.com', 'password');
     });
 
+    expect(authApi.login).toHaveBeenCalledWith({
+      email: 'me@example.com',
+      password: 'password',
+      device_hint: 'ios-iphone15pro',
+    });
     expect(http.storeTokens).toHaveBeenCalledWith({
       access_token: 'a',
       refresh_token: 'r',

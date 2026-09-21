@@ -61,6 +61,7 @@ export async function resetPassword(data: ResetPasswordRequest): Promise<{ messa
 export interface LoginRequest {
   email: string;
   password: string;
+  device_hint: string;
 }
 
 export interface AuthTokens {
