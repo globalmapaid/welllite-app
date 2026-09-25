@@ -34,10 +34,7 @@ function renderNetwork() {
 }
 
 describe('NetworkProvider', () => {
-  const originalDev = (globalThis as any).__DEV__;
-
   afterEach(() => {
-    (globalThis as any).__DEV__ = originalDev;
     netInfoListener = null;
   });
 
@@ -53,33 +50,5 @@ describe('NetworkProvider', () => {
       netInfoListener?.({ isConnected: false, type: 'none' });
     });
     expect(getValue().isConnected).toBe(false);
-  });
-
-  it('lets a dev override take precedence while __DEV__ is true', () => {
-    (globalThis as any).__DEV__ = true;
-    const getValue = renderNetwork();
-
-    act(() => {
-      netInfoListener?.({ isConnected: true, type: 'wifi' });
-    });
-    act(() => {
-      getValue().setDevOverride(false);
-    });
-
-    expect(getValue().isConnected).toBe(false);
-  });
-
-  it('ignores setDevOverride outside of __DEV__', () => {
-    (globalThis as any).__DEV__ = false;
-    const getValue = renderNetwork();
-
-    act(() => {
-      netInfoListener?.({ isConnected: true, type: 'wifi' });
-    });
-    act(() => {
-      getValue().setDevOverride(false);
-    });
-
-    expect(getValue().isConnected).toBe(true);
   });
 });

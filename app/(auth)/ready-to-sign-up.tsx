@@ -52,7 +52,6 @@ export default function ReadyToSignUp() {
         params: { email: params.email },
       });
     } catch (error: any) {
-      console.error('[auth] register error:', error);
       const message =
         error?.response?.data?.detail ||
         error?.response?.data?.message ||

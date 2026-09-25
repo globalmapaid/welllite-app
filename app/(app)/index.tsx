@@ -124,9 +124,8 @@ export default function MapScreen() {
           setWells(result.items);
           setTruncated(result.truncated);
           saveWellsCache(result.items);
-        } catch (error) {
-          if (controller.signal.aborted) return;
-          console.log('[Map] Failed to fetch wells:', error);
+        } catch {
+          // Keep showing cached wells on failure.
         }
       })();
     },
