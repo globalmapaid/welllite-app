@@ -143,6 +143,18 @@ export const translations: Record<string, Entry> = {
     'am-Latn': 'Kodu Betesaka Huneta Teregaggtwal',
     om: "Koodiin Milkaa'inaan Mirkanaa'eera",
   },
+  registrationSuccessTitle: {
+    en: 'Registration Successful',
+    am: 'ምዝገባው በተሳካ ሁኔታ ተጠናቋል',
+    'am-Latn': 'Mizgebaw Betesaka Huneta Tetenaqwal',
+    om: "Galmeen Milkaa'inaan Xumurameera",
+  },
+  registrationSuccessBody: {
+    en: 'Your account has been created successfully. Please log in to continue.',
+    am: 'መለያዎ በተሳካ ሁኔታ ተፈጥሯል። ለመቀጠል እባክዎ ይግቡ።',
+    'am-Latn': 'Meleyawo Betesaka Huneta Tefetrwal. Lemeqetel Ebakwo Yigbu.',
+    om: "Herregni kee milkaa'inaan uumameera. Itti fufuuf maaloo seeni.",
+  },
   codeVerifiedBody: {
     en: 'Your code has been verified successfully. You can reset your password.',
     am: 'ኮድዎ በተሳካ ሁኔታ ተረጋግጧል። አዲስ የይለፍ ቃል ማስቀመጥ ይችላሉ።',

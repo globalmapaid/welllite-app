@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "welllite",
+    "name": "WellLite",
     "slug": "welllite",
     "scheme": "welllite",
     "version": "1.0.0",
@@ -14,7 +14,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.welllite"
+      "bundleIdentifier": "org.globalmapaid.welllite"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +27,8 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.anonymous.welllite"
+      "package": "org.globalmapaid.welllite",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +47,8 @@
           "locationAlwaysAndWhenInUsePermission": "Allow WellLite to use your location."
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "./plugins/withReleaseSigning"
     ]
   }
 }

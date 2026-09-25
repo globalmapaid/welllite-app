@@ -124,11 +124,11 @@ export default function VerifyEmailScreen() {
 
       <SuccessModal
         visible={showSuccess}
-        title={mode === 'reset' ? t('codeVerifiedTitle') : 'Registration Successful'}
+        title={mode === 'reset' ? t('codeVerifiedTitle') : t('registrationSuccessTitle')}
         body={
           mode === 'reset'
             ? t('codeVerifiedBody')
-            : 'Your account has been created successfully. Please log in to continue.'
+            : t('registrationSuccessBody')
         }
         buttonLabel={mode === 'reset' ? t('resetPassword') : t('logIn')}
         onButtonPress={handleSuccessButton}
