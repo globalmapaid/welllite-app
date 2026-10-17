@@ -18,6 +18,10 @@ jest.mock('./http', () => ({
   setForceLogoutListener: jest.fn(),
 }));
 
+jest.mock('./wellsCache', () => ({
+  clearWellsCache: jest.fn(),
+}));
+
 jest.mock('./deviceId', () => ({
   getDeviceHint: () => 'ios-iphone15pro',
 }));

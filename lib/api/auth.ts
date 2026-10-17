@@ -137,6 +137,15 @@ export async function logout(data: LogoutRequest): Promise<void> {
   await http.post('/api/v1/auth/logout', data);
 }
 
+export interface DeleteAccountRequest {
+  email: string;
+  password: string;
+}
+
+export async function deleteAccount(data: DeleteAccountRequest): Promise<void> {
+  await http.post('/api/v1/auth/delete-account', data);
+}
+
 export interface RefreshRequest {
   refresh_token: string;
 }

@@ -12,6 +12,7 @@ import {
   storeTokens,
   storeUser,
 } from "./http";
+import { clearWellsCache } from "./wellsCache";
 
 const MIN_SPLASH_MS = 1250;
 
@@ -30,6 +31,7 @@ interface AuthContextValue {
   selectMembership: (membershipId: string) => Promise<void>;
   signOut: () => Promise<void>;
   switchMembership: (membershipId: string) => Promise<void>;
+  deleteAccount: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -135,9 +137,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("signedOut");
   }
 
+  // Wipes local session data but leaves `status` untouched so the caller can
+  // show a confirmation before calling signOut() to leave the app.
+  async function deleteAccount(email: string, password: string): Promise<void> {
+    await authApi.deleteAccount({ email, password });
+    await clearTokens();
+    await clearUser();
+    await clearWellsCache();
+  }
+
   return (
     <AuthContext.Provider
-      value={{ status, pendingSelection, user, signIn, selectMembership, signOut, switchMembership }}
+      value={{
+        status,
+        pendingSelection,
+        user,
+        signIn,
+        selectMembership,
+        signOut,
+        switchMembership,
+        deleteAccount,
+      }}
     >
       {children}
     </AuthContext.Provider>

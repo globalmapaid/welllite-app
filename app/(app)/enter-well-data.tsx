@@ -21,6 +21,7 @@ import { db } from '@/db';
 import { pendingWells, pendingReadings } from '@/db/schema';
 import DropdownField from '@/components/molecules/DropdownField';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
+import PhotoPolicyModal from '@/components/organisms/PhotoPolicyModal';
 import { colors, dimensions } from '@/components/theme';
 import { getWellById, createWell, submitWellChange } from '@/lib/api/wells';
 import { createReading } from '@/lib/api/readings';
@@ -181,6 +182,8 @@ export default function EnterWellDataScreen() {
 
   const [form, setForm] = useState<FormState>(emptyForm);
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
+  const [policySlot, setPolicySlot] = useState<number | null>(null);
+  const pendingPhotoSlotRef = useRef<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadingWell, setLoadingWell] = useState(isEditMode);
   const [openField, setOpenField] = useState<keyof FormState | null>(null);
@@ -244,6 +247,20 @@ export default function EnterWellDataScreen() {
     if (!result.canceled && result.assets[0]) {
       setPhotos((prev) => prev.map((p, i) => (i === index ? result.assets[0].uri : p)));
     }
+  }
+
+  // iOS can't present the camera while the policy modal is still closing, so
+  // there the camera is launched from the modal's onDismiss instead.
+  function launchPendingPhoto() {
+    const slot = pendingPhotoSlotRef.current;
+    pendingPhotoSlotRef.current = null;
+    if (slot !== null) pickPhoto(slot);
+  }
+
+  function continuePhotoPolicy() {
+    pendingPhotoSlotRef.current = policySlot;
+    setPolicySlot(null);
+    if (Platform.OS !== 'ios') launchPendingPhoto();
   }
 
   function removePhoto(index: number) {
@@ -482,7 +499,7 @@ export default function EnterWellDataScreen() {
               <PhotoSlot
                 key={i}
                 uri={uri}
-                onPress={() => pickPhoto(i)}
+                onPress={() => setPolicySlot(i)}
                 onRemove={() => removePhoto(i)}
               />
             ))}
@@ -517,6 +534,12 @@ export default function EnterWellDataScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
       )}
+      <PhotoPolicyModal
+        visible={policySlot !== null}
+        onContinue={continuePhotoPolicy}
+        onCancel={() => setPolicySlot(null)}
+        onDismiss={launchPendingPhoto}
+      />
     </SafeAreaView>
   );
 }

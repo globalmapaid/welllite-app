@@ -268,6 +268,18 @@ export const translations: Record<string, Entry> = {
     om: "Waa'ee Boollaa Seenaa Ni Jiraa?",
   },
   uploadPhotos: { en: 'Upload photos', am: 'ፎቶዎችን ይጫኑ', 'am-Latn': 'Fotowochin Yichanu', om: "Suuraawwan Ol Fe'i" },
+  // Photo privacy reminder — not in the translator's spreadsheet; the am,
+  // am-Latn and om text is an unreviewed draft and should be checked by the
+  // translator.
+  photoPolicyTitle: { en: 'Photo privacy', am: 'የፎቶ ግላዊነት', 'am-Latn': 'YeFoto Gelawinet', om: 'Iccitii Suuraa' },
+  photoPolicyBody: {
+    en: 'Photos of wells help show their condition. Please photograph the well only, and do not include people standing in front of it or anyone’s face. Hands working a pump are fine, as they show the well is working. In this version of the app, photos stay on your device and are not uploaded to our servers. If we start uploading photos, we will update this policy first, and photos showing people’s faces may be removed for privacy reasons.',
+    am: 'የውኃ ጉድጓዶች ፎቶዎች ያሉበትን ሁኔታ ለማሳየት ይረዳሉ። እባክዎ የውኃ ጉድጓዱን ብቻ ፎቶ ያንሱ፤ ከፊቱ የቆሙ ሰዎችን ወይም የማንንም ፊት አያካትቱ። ፓምፕ የሚያንቀሳቅሱ እጆች መታየታቸው ችግር የለውም፤ ጉድጓዱ እየሠራ መሆኑን ያሳያሉ። በዚህ የመተግበሪያው ስሪት ፎቶዎች በመሣሪያዎ ላይ ብቻ ይቀመጣሉ እንጂ ወደ አገልጋዮቻችን አይላኩም። ፎቶዎችን መጫን ከጀመርን፣ መጀመሪያ ይህንን ፖሊሲ እናሻሽላለን፤ የሰዎችን ፊት የሚያሳዩ ፎቶዎች ለግላዊነት ሲባል ሊወገዱ ይችላሉ።',
+    'am-Latn': 'YeWuha Gudgwadoch Fotowoch Yalubetin Huneta Lemasayet Yiredalu. Ebakwo YeWuha Gudgwadun Bicha Foto Yansu; Kefitu Yekomu Sewochin Weyim YeManinim Fit Ayakatitu. Pamp Yemiyanqesaqsu Ejoch Metayetachew Chigir Yelewim; Gudgwadu Eyesera Mehonun Yasayalu. BeZih YeMetegberiyaw Sirit Fotowoch BeMesariyawo Lay Bicha Yikemetalu Inji Wede Agelgayochachin Ayilakum. Fotowochin Mechan Kejemerin, Mejemeriya Yihenin Polisi Enashashilalen; YeSewochin Fit Yemiyasayu Fotowoch LeGelawinet Sibal Liwegedu Yichilalu.',
+    om: "Suuraan boolla bishaanii haala isaa agarsiisuuf gargaara. Maaloo boolla bishaanii qofa suuraa kaasi; namoota fuula isaa dura dhaabatan ykn fuula nama kamiyyuu hin dabalatin. Harki paampii hojjechiisu yoo mul'ate rakkoo hin qabu, sababni isaas boollichi akka hojjetu agarsiisa. Gosa appilikeeshinii kanaa keessatti, suuraan meeshaa kee irra tura malee gara sarvarii keenyaatti hin ergamu. Yoo suuraa ol fe'uu jalqabne, dursinee imaammata kana ni haaromsina; suuraaleen fuula namootaa agarsiisan sababa iccitiitiif haqamuu danda'u.",
+  },
+  photoPolicyContinue: { en: 'Continue', am: 'ቀጥል', 'am-Latn': 'Ketel', om: 'Itti fufi' },
+  photoPolicyCancel: { en: 'Cancel', am: 'ሰርዝ', 'am-Latn': 'Serz', om: 'Haqi' },
   optional: { en: 'Optional', am: 'አማራጭ', 'am-Latn': 'Amarach', om: 'Filannoo' },
   staticWaterLevel: { en: 'Static water level', am: 'የቆመ የውኃ ደረጃ', 'am-Latn': 'YeQome YeWuha Dereja', om: 'Sadarkaa Bishaan Dhaabbataa' },
   enterStaticWaterLevel: {

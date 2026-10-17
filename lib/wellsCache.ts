@@ -13,6 +13,10 @@ export async function saveWellsCache(wells: Well[]): Promise<void> {
   });
 }
 
+export async function clearWellsCache(): Promise<void> {
+  await db.delete(wellsCache);
+}
+
 export async function loadWellsCache(): Promise<Well[]> {
   const [row] = await db.select().from(wellsCache);
   if (!row) return [];

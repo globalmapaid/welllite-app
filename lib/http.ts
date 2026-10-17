@@ -75,6 +75,7 @@ const AUTH_ENDPOINTS_EXCLUDED_FROM_REFRESH = [
   "/api/v1/auth/reset-password",
   "/api/v1/auth/select-client",
   "/api/v1/auth/logout",
+  "/api/v1/auth/delete-account",
 ];
 
 function isExcludedFromRefresh(config: InternalAxiosRequestConfig): boolean {

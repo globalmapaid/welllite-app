@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
@@ -10,13 +10,23 @@ import FormLabel from '@/components/atoms/FormLabel';
 import PillInput from '@/components/atoms/PillInput';
 import PrimaryButton from '@/components/atoms/PrimaryButton';
 import DropdownField from '@/components/molecules/DropdownField';
-import { colors, dimensions } from '@/components/theme';
+import DeleteAccountModal, {
+  type DeleteAccountStep,
+} from '@/components/organisms/DeleteAccountModal';
+import LogoutModal from '@/components/organisms/LogoutModal';
+import SuccessModal from '@/components/organisms/SuccessModal';
+import { colors, dimensions, typography } from '@/components/theme';
 import { useTranslateServerMessage } from '@/lib/i18n';
+import { hasUnsyncedData } from '@/lib/sync';
 
 export default function ProfileScreen() {
-  const { user, signOut, switchMembership } = useAuth();
+  const { user, signOut, switchMembership, deleteAccount } = useAuth();
   const translateServerMessage = useTranslateServerMessage();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<DeleteAccountStep | 'done' | null>(null);
+  const [deleteError, setDeleteError] = useState<string | undefined>();
   const [switching, setSwitching] = useState(false);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [selectedMembershipId, setSelectedMembershipId] = useState('');
@@ -54,25 +64,38 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  function confirmLogout() {
-    Alert.alert(
-      'Log out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log out', style: 'destructive', onPress: handleLogout },
-      ],
-    );
-  }
-
   async function handleLogout() {
     setLoggingOut(true);
     try {
       await signOut();
     } catch {
+      setLogoutModalVisible(false);
       Alert.alert('Error', 'Failed to log out. Please try again.');
     } finally {
       setLoggingOut(false);
+    }
+  }
+
+  async function openDeleteAccount() {
+    setDeleteError(undefined);
+    setDeleteStep((await hasUnsyncedData()) ? 'unsynced' : 'confirm');
+  }
+
+  async function handleDeleteAccount(email: string, password: string) {
+    setDeleting(true);
+    setDeleteError(undefined);
+    try {
+      await deleteAccount(email, password);
+      setDeleteStep('done');
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      setDeleteError(translateServerMessage(message));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -153,12 +176,44 @@ export default function ProfileScreen() {
       <View style={styles.footer}>
         <PrimaryButton
           label={loggingOut ? 'Logging out…' : 'Log out'}
-          onPress={confirmLogout}
-          disabled={loggingOut}
+          onPress={() => setLogoutModalVisible(true)}
+          disabled={loggingOut || deleting}
           loading={loggingOut}
           style={styles.logoutButton}
         />
+        <TouchableOpacity
+          style={[styles.deleteButton, (loggingOut || deleting) && styles.disabled]}
+          onPress={openDeleteAccount}
+          disabled={loggingOut || deleting}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.deleteText}>Delete account</Text>
+        </TouchableOpacity>
       </View>
+
+      <LogoutModal
+        visible={logoutModalVisible}
+        loading={loggingOut}
+        onConfirm={handleLogout}
+        onCancel={() => setLogoutModalVisible(false)}
+      />
+
+      <DeleteAccountModal
+        step={deleteStep === 'done' ? null : deleteStep}
+        loading={deleting}
+        error={deleteError}
+        onConfirm={() => setDeleteStep('credentials')}
+        onSubmit={handleDeleteAccount}
+        onCancel={() => setDeleteStep(null)}
+      />
+
+      <SuccessModal
+        visible={deleteStep === 'done'}
+        title="Account deleted"
+        body="Your account has been permanently deleted."
+        buttonLabel="OK"
+        onButtonPress={signOut}
+      />
     </SafeAreaView>
   );
 }
@@ -187,4 +242,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   logoutButton: { backgroundColor: colors.error },
+  deleteButton: { marginTop: 16, alignItems: 'center', padding: 8 },
+  deleteText: {
+    color: colors.error,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
+  },
+  disabled: { opacity: 0.4 },
 });

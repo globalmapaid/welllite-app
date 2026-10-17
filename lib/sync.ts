@@ -12,6 +12,14 @@ export async function getPendingCount(): Promise<number> {
   return wellRows.length;
 }
 
+export async function hasUnsyncedData(): Promise<boolean> {
+  const [wellRows, readingRows] = await Promise.all([
+    db.select().from(pendingWells).limit(1),
+    db.select().from(pendingReadings).limit(1),
+  ]);
+  return wellRows.length > 0 || readingRows.length > 0;
+}
+
 export async function runSync(): Promise<{ rejected: number }> {
   if (syncing) return { rejected: 0 };
   syncing = true;
