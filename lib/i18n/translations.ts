@@ -14,6 +14,8 @@ export const translations: Record<string, Entry> = {
   confirmPassword: { en: 'Confirm password', am: 'የይለፍ ቃልን ያረጋግጡ', 'am-Latn': 'YeYilef Kalin Yaregagetu', om: 'Jecha Darbii Mirkaneessi' },
   password: { en: 'Password', am: 'የይለፍ ቃል', 'am-Latn': 'YeYilef Kal', om: 'Jecha Darbii' },
   enterPassword: { en: 'Enter password', am: 'የይለፍ ቃል ያስገቡ', 'am-Latn': 'YeYilef Kal Yasgebu', om: 'Jecha Darbii Galchi' },
+  showPassword: { en: 'Show password', am: 'የይለፍ ቃል አሳይ', 'am-Latn': 'YeYilef Kal Asay', om: 'Jecha Darbii Agarsiisi' },
+  hidePassword: { en: 'Hide password', am: 'የይለፍ ቃል ደብቅ', 'am-Latn': 'YeYilef Kal Debq', om: 'Jecha Darbii Dhoksi' },
   email: { en: 'Email', am: 'ኢሜይል', 'am-Latn': 'Email', om: 'Imeelii' },
   enterEmail: { en: 'Enter email', am: 'ኢሜይል ያስገቡ', 'am-Latn': 'Email Yasgebu', om: 'Imeelii Galchi' },
   gotIt: { en: 'Got it.', am: 'ገብቶኛል።', 'am-Latn': 'Gebtognal', om: 'Naaf gale.' },
